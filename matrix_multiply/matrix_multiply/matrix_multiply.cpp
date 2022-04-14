@@ -12,15 +12,18 @@ int main() {
 		std::vector<cl::Device> device;
 		cl::Context context;
 		cl::CommandQueue commandQueue;
-		// 3x3
-		std::vector<float> vettoreA(9, 3);
-		// 3x3
-		std::vector<float> vettoreB(9, 3);
-		// 3x3
-		std::vector<float> vettoreC(9);
 
+		std::vector<float> vettoreA = {1,0,1,1,5,-1,3,2,0};
+		int heightA = 3;
+		int widthA = 3;
+
+		std::vector<float> vettoreB = {7,1,1,0,0,4};
+		int heightB = 3;
+		int widthB = 2;
+
+		//std::vector<float> vettoreC(heightA*widthB);
+		std::vector<float> vettoreC(heightA*widthB);
 		cl_int result;
-
 
 		/// SETUP
 		// recupero piattaforma
@@ -54,24 +57,14 @@ int main() {
 		// CREAZIONE BUFFER E MOVIMENTO DATI IN MEMORIA
 		// NB: i buffer che contengono delle matrici sono degli array di float!!
 		cl::Buffer bufferA(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, vettoreA.size() * sizeof(float), vettoreA.data(), &result);
-		cl::Buffer bufferB(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, vettoreB.size() * sizeof(float), vettoreA.data(), &result);
+		cl::Buffer bufferB(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, vettoreB.size() * sizeof(float), vettoreB.data(), &result);
 		cl::Buffer bufferC(context, CL_MEM_READ_ONLY, vettoreC.size() * sizeof(float), NULL, &result);
 		if (result != CL_SUCCESS) {
 			std::cerr << "ERROR CREATING BUFFERS" << std::endl;
 			throw result;
 		}
 
-
-		// scrivo dati nella memoria nei buffer appena creati
-		//result = cl::enqueueWriteBuffer(bufferA, CL_TRUE, 0, vettoreA.size() * sizeof(float), vettoreA.data(), NULL, NULL);
-		//result = cl::enqueueWriteBuffer(bufferB, CL_TRUE, 0, vettoreB.size() * sizeof(float), vettoreB.data(), NULL, NULL);
-
-		if (result != CL_SUCCESS) {
-			std::cerr << "ERROR ENQUEUE WRITE BUFFERS" << std::endl;
-			throw result;
-		}
-	
-
+		
 		// recupero kernel dal file esterno
 		std::ifstream kernelFile("kernelFile.cl");
 		std::string src(std::istreambuf_iterator<char>(kernelFile), (std::istreambuf_iterator<char>()));
@@ -102,20 +95,12 @@ int main() {
 		}
 		
 
-		auto workGroupSize = kernelMultiply.getWorkGroupInfo<CL_KERNEL_COMPILE_WORK_GROUP_SIZE>(device[0], &result);
-
-		if (result != CL_SUCCESS) {
-			std::cerr << "ERROR CALCULATE WORK GROUP SIZE" << std::endl;
-			throw result;
-		}
-
-
 		// imposto gli argomenti del kernel	
 		result = kernelMultiply.setArg(0, bufferC);
-		result = kernelMultiply.setArg(1, 3);
-		result = kernelMultiply.setArg(2, 3);
-		result = kernelMultiply.setArg(3, 3);
-		result = kernelMultiply.setArg(4, 3);
+		result = kernelMultiply.setArg(1, widthA);
+		result = kernelMultiply.setArg(2, heightA);
+		result = kernelMultiply.setArg(3, widthB);
+		result = kernelMultiply.setArg(4, heightB);
 		result = kernelMultiply.setArg(5, bufferA);
 		result = kernelMultiply.setArg(6, bufferB);
 
@@ -126,14 +111,11 @@ int main() {
 
 
 		// TODO: creo eventuali workgroups e utilizzo se serve la memoria locale per ottimizzare esecuzione
-		//
 
-		size_t dim = 9;
 			
 		// eseguo il kernel
 		//NB: NDrange sono le dimensioni globali e locali
-		result = commandQueue.enqueueNDRangeKernel(kernelMultiply, cl::NullRange, cl::NDRange(9,9), cl::NullRange, NULL, NULL);
-		//clEnqueueNDRangeKernel(commandQueue, kernelMultiply, 0, &dim , NULL, NULL, NULL, NULL, NULL);
+		result = commandQueue.enqueueNDRangeKernel(kernelMultiply, cl::NullRange, cl::NDRange(heightA,widthB), cl::NullRange, NULL, NULL);
 
 		if (result != CL_SUCCESS) {
 			std::cerr << "ERROR ENQUEUE KERNEL" << std::endl;
