@@ -31,7 +31,8 @@ vettori. Ogni work item si prende una linea ed una colonna */
 		sum += inputA[row*widthA +i] * inputB[i*widthB + col];
 	} 
 
-	outputC[row*widthB +col] = sum;
+	outputC[row*widthB +col] = sum; 
+
 }
 
 

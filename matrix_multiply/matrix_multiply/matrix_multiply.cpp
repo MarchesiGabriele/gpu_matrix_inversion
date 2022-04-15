@@ -13,15 +13,14 @@ int main() {
 		cl::Context context;
 		cl::CommandQueue commandQueue;
 
-		std::vector<float> vettoreA = {1,0,1,1,5,-1,3,2,0};
+		std::vector<float> vettoreA = {1,2,3,4,5,6,7,8,9};
 		int heightA = 3;
 		int widthA = 3;
 
-		std::vector<float> vettoreB = {7,1,1,0,0,4};
+		std::vector<float> vettoreB = {1,2,3,4,5,6,7,8,9};
 		int heightB = 3;
-		int widthB = 2;
+		int widthB = 3;
 
-		//std::vector<float> vettoreC(heightA*widthB);
 		std::vector<float> vettoreC(heightA*widthB);
 		cl_int result;
 
@@ -115,7 +114,7 @@ int main() {
 			
 		// eseguo il kernel
 		//NB: NDrange sono le dimensioni globali e locali
-		result = commandQueue.enqueueNDRangeKernel(kernelMultiply, cl::NullRange, cl::NDRange(heightA,widthB), cl::NullRange, NULL, NULL);
+		result = commandQueue.enqueueNDRangeKernel(kernelMultiply, cl::NullRange, cl::NDRange(widthB, heightA), cl::NullRange, NULL, NULL);
 
 		if (result != CL_SUCCESS) {
 			std::cerr << "ERROR ENQUEUE KERNEL" << std::endl;
