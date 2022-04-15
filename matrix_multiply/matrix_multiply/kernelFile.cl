@@ -17,16 +17,11 @@ __kernel void simpleMultiply(
 	__global float *inputB){
 
 	
-	/* recupero index di riga e colonna del singolo work item  */
-	/* serve per sapere se sono sulla riga/colonna 0 oppure 1  */
 	int row = get_global_id(1);
 	int col = get_global_id(0);
 
 	float sum = 0.0f;
 	
-	/* NB: inputA e inputB sono matrici! ma in memoria corrispondono a dei
-vettori. Ogni work item si prende una linea ed una colonna */		
-
 	for(int i = 0; i<widthA; i++){
 		sum += inputA[row*widthA +i] * inputB[i*widthB + col];
 	} 

@@ -13,13 +13,15 @@ int main() {
 		cl::Context context;
 		cl::CommandQueue commandQueue;
 
-		std::vector<float> vettoreA = {1,2,3,4,5,6,7,8,9};
-		int heightA = 3;
-		int widthA = 3;
+		//std::vector<float> vettoreA = {1,2,3,4,5,6,7,8,9};
+		std::vector<float> vettoreA(1024, 0);
+		int heightA = 32;
+		int widthA = 32;
 
-		std::vector<float> vettoreB = {1,2,3,4,5,6,7,8,9};
-		int heightB = 3;
-		int widthB = 3;
+		//std::vector<float> vettoreB = {1,2,3,4,5,6,7,8,9};
+		std::vector<float> vettoreB(1024, 1);
+		int heightB = 32;
+		int widthB = 32;
 
 		std::vector<float> vettoreC(heightA*widthB);
 		cl_int result;
@@ -40,8 +42,8 @@ int main() {
 			throw result;
 		}
 		for (int i = 0; i < device.size(); i++) {
-			std::cout << device[i].getInfo<CL_DEVICE_NAME>() << std::endl;
-			std::cout << device[i].getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>() << std::endl;
+			std::cout << "DEVICE NAME: " << device[i].getInfo<CL_DEVICE_NAME>() << std::endl;
+			std::cout << "MAX WORK GROUP DIMENSION: " << device[i].getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>() << std::endl;
 		}
 
 
@@ -132,7 +134,11 @@ int main() {
 
 
 		for (int i = 0; i < vettoreC.size(); i++) {
-			std::cout << vettoreC[i] << std::endl;
+			if (i % widthB == 0) {
+				std::cout << std::endl;
+			}
+			
+			std::cout << vettoreC[i] << " ";
 		}
 	}
 	catch (cl_int e){
