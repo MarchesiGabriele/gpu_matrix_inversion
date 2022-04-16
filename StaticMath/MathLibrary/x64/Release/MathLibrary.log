@@ -1,0 +1,3 @@
+﻿  MathLibrary.cpp
+C:\TESI\matlab-parallel-computation-tool\StaticMath\MathLibrary\MathLibrary.cpp(44): warning C4715: 'MathLibrary::Arithmetic::Test': not all control paths return a value
+  MathLibrary.vcxproj -> C:\TESI\matlab-parallel-computation-tool\StaticMath\x64\Release\MathLibrary.lib

@@ -14,14 +14,14 @@ int main() {
 		cl::CommandQueue commandQueue;
 
 		//std::vector<float> vettoreA = {1,2,3,4,5,6,7,8,9};
-		std::vector<float> vettoreA(1024, 0);
-		int heightA = 32;
-		int widthA = 32;
+		std::vector<float> vettoreA(100000000, 11);
+		int heightA = 10000;
+		int widthA = 10000;
 
 		//std::vector<float> vettoreB = {1,2,3,4,5,6,7,8,9};
-		std::vector<float> vettoreB(1024, 1);
-		int heightB = 32;
-		int widthB = 32;
+		std::vector<float> vettoreB(100000000, 19);
+		int heightB = 10000;
+		int widthB = 10000;
 
 		std::vector<float> vettoreC(heightA*widthB);
 		cl_int result;
@@ -133,13 +133,7 @@ int main() {
 		}
 
 
-		for (int i = 0; i < vettoreC.size(); i++) {
-			if (i % widthB == 0) {
-				std::cout << std::endl;
-			}
-			
-			std::cout << vettoreC[i] << " ";
-		}
+
 	}
 	catch (cl_int e){
 		
