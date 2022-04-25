@@ -43,8 +43,22 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 		std::string platformVendor;
 		std::string platformVersion;
 
-
 		std::string deviceName;
+
+		// primo parametro funzione -> matrice da invertire (sofforma di vettore o vettore di vettori)
+		std::vector<float> matrice_iniziale = {};
+
+		// Ordine Matrice  
+		// TODO CONTROLLARE  CHE LA MATRICE INSERITA SIA  QUADRATA !!
+		int matrix_order = sqrt(matrice_iniziale.size());
+
+		
+
+
+
+		
+
+
 
 		// Recupero le piattaforme disponibili
 		operationResult = cl::Platform::get(&platforms);
@@ -96,7 +110,9 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 		// Creo la command queue per il device scelto
 		commandQueue = cl::CommandQueue(chosenDevice);
 
-		// Creo buffers
+		// Creo buffers n x 2n
+		cl::Buffer augmented_matrix(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, )
+
 
 
 
