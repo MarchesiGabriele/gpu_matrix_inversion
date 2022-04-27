@@ -142,31 +142,63 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 			std::cerr << "ERROR CREATING BUFFERS" << std::endl;
 			throw operationResult;
 		}
+
+
 		///////////////////////////////////////////////////////////////
 		/// Recupero kernel dal file esterno
-
-		//fix column kernel
 		std::ifstream fix_column_kernelFile("fix_column_kernel.cl");
 		std::string fix_column_src(std::istreambuf_iterator<char>(fix_column_kernelFile), (std::istreambuf_iterator<char>()));
-		//fix row kernel
+
 		std::ifstream fix_row_kernelFile("fix_row_kernel.cl");
 		std::string fix_row_src(std::istreambuf_iterator<char>(fix_row_kernelFile), (std::istreambuf_iterator<char>()));
 
 		///////////////////////////////////////////////////////////////
 		/// Creo programma usando il kernel
-
-		//fix column program
 		cl::Program fix_column_program(context, cl::Program::Sources(1, std::make_pair(fix_column_src.c_str(), fix_column_src.length() + 1)), &operationResult);
 		if (operationResult != CL_SUCCESS) {
-			std::cerr << "ERROR CREATING PROGRAM" << std::endl;
+			std::cerr << "ERROR CREATING PROGRAM FIX COLUMNS" << std::endl;
 			throw operationResult;
 		}
-		//fix row program
+
 		cl::Program fix_row_program(context, cl::Program::Sources(1, std::make_pair(fix_row_src.c_str(), fix_row_src.length() + 1)), &operationResult);
 		if (operationResult != CL_SUCCESS) {
-			std::cerr << "ERROR CREATING PROGRAM" << std::endl;
+			std::cerr << "ERROR CREATING PROGRAM FIX ROWS" << std::endl;
 			throw operationResult;
 		}
+	
+		
+		///////////////////////////////////////////////////////////////
+		/// Compilo i programmi
+		// TODO: capire come poter passare solo un  device  e non  la lista intera
+		operationResult = fix_column_program.build(devices);
+		if (operationResult != CL_SUCCESS) {
+			std::cerr << "ERROR BUILDING PROGRAM FIX COLUMNS" << std::endl;
+			throw operationResult;
+		}
+
+		operationResult = fix_row_program.build(devices);
+		if (operationResult != CL_SUCCESS) {
+			std::cerr << "ERROR BUILDING PROGRAM FIX ROWS" << std::endl;
+			throw operationResult;
+		}
+
+
+		///////////////////////////////////////////////////////////////
+		/// Creo i kernel
+		cl::Kernel fix_column_kernel(fix_column_program, "fixColumnKernel", &operationResult);
+
+		if (operationResult != CL_SUCCESS) {
+			std::cerr << "ERROR CREATING FIX COLUMN KERNEL" << std::endl;
+			throw operationResult;
+		}
+
+		cl::Kernel fix_row_kernel(fix_row_program, "fixRowKernel", &operationResult);
+		if (operationResult != CL_SUCCESS) {
+			std::cerr << "ERROR CREATING FIX ROW KERNEL" << std::endl;
+			throw operationResult;
+		}
+
+
 
 		// esecuzione kernel per ogni riga della matrice augmentata
 		for (int i = 0; i < matrix_order; i++) {
