@@ -46,7 +46,7 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 		std::string deviceName;
 
 		// primo parametro funzione -> matrice da invertire (sofforma di vettore o vettore di vettori)
-		std::vector<float> matrice_input = {2,0,2,0,4,2,2,2,2};
+		std::vector<float> matrice_input = {1,2,3,1,1,1,4,1,2,4,7,4,0,-3,3,-1};
 
 		// Ordine Matrice  
 		// TODO CONTROLLARE  CHE LA MATRICE INSERITA SIA  QUADRATA !!
@@ -242,11 +242,11 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 		operationResult = fix_row_kernel.setArg(0, augmented_matrix);
 		// larghezza matrice augmentata
 		operationResult = fix_row_kernel.setArg(1, matrix_order * 2);
-		for (int i = 0; i < 3; i++) {
+		for (int i = 0; i < matrix_order; i++) {
 			//  TODO: calcolare elemento sulla diagonale dentro il kernel e non da qua fuori, questa dovrenne essere la solzuione al problem,a finales
 			elementoDiagonale = matrice_augmentata[i * matrix_order * 2 + i];
 			operationResult = fix_row_kernel.setArg(2, i);
-			operationResult = fix_row_kernel.setArg(3, elementoDiagonale);
+			std::cout << elementoDiagonale;
 
 			operationResult = commandQueue.enqueueNDRangeKernel(fix_row_kernel, cl::NullRange, cl::NDRange(2 * matrix_order, matrix_order), cl::NullRange, NULL, NULL);
 			

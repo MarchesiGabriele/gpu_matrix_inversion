@@ -1,6 +1,6 @@
 ﻿  testMain.cpp
 C:\TESI\matlab-parallel-computation-tool\matrix_inversion_solution\testMain\testMain.cpp(53,20): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
-C:\TESI\matlab-parallel-computation-tool\matrix_inversion_solution\testMain\testMain.cpp(246,67): warning C4244: '=': conversion from '_Ty' to 'int', possible loss of data
+C:\TESI\matlab-parallel-computation-tool\matrix_inversion_solution\testMain\testMain.cpp(247,67): warning C4244: '=': conversion from '_Ty' to 'int', possible loss of data
           with
           [
               _Ty=float

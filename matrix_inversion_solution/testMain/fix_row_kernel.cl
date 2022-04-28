@@ -9,13 +9,16 @@ Assegno ad ogni thread un elemento della riga
 Ogni elemento viene diviso per Aii ovvero lelemento sulla diagonale 
 */
 
-__kernel void fixRowKernel(__global float *matrix, int size, int rowId, int Aii){
+__kernel void fixRowKernel(__global float *matrix, int size, int rowId){
 
 	__local float row[100];
+
+	__local float Aii;
 
 	int colId = get_global_id(0);
 
 	row[colId] = matrix[size*rowId + colId];
+	Aii = matrix[size*rowId + rowId];
 
 	row[colId] = row[colId]/Aii;
 	matrix[size*rowId + colId] = row[colId];
