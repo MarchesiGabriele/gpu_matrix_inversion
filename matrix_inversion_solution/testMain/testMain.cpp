@@ -234,33 +234,44 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 		/// Con dei cicli itero attraverso le colonne/righe della matrice augmentata
 		/// Ad ogni ciclo imposto nuovi parametri al kernel e procedo con una nuova esecuzione
 	
+
+		operationResult = fix_column_kernel.setArg(0, augmented_matrix);
+		operationResult = fix_column_kernel.setArg(1, 2*matrix_order);
 		// ROWS
 		int elementoDiagonale = 0;
 		operationResult = fix_row_kernel.setArg(0, augmented_matrix);
-		operationResult = fix_row_kernel.setArg(1, matrix_order*2);
-		for (int i = 0; i < matrix_order;  i++) {
-			elementoDiagonale = matrice_augmentata[i * matrix_order*2 + i];
+		// larghezza matrice augmentata
+		operationResult = fix_row_kernel.setArg(1, matrix_order * 2);
+		for (int i = 0; i < 3; i++) {
+			//  TODO: calcolare elemento sulla diagonale dentro il kernel e non da qua fuori, questa dovrenne essere la solzuione al problem,a finales
+			elementoDiagonale = matrice_augmentata[i * matrix_order * 2 + i];
 			operationResult = fix_row_kernel.setArg(2, i);
 			operationResult = fix_row_kernel.setArg(3, elementoDiagonale);
-	
-			operationResult = commandQueue.enqueueNDRangeKernel(fix_row_kernel, cl::NullRange, cl::NDRange(2*matrix_order, 1), cl::NullRange, NULL, NULL);
+
+			operationResult = commandQueue.enqueueNDRangeKernel(fix_row_kernel, cl::NullRange, cl::NDRange(2 * matrix_order, matrix_order), cl::NullRange, NULL, NULL);
+			
+
+			//COLIUMNS
+
+			operationResult = fix_column_kernel.setArg(2, i);
+			operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange(2*matrix_order, matrix_order), cl::NullRange, NULL, NULL);
+
 
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR ROW KERNEL EXECUTION" << std::endl;
 				throw operationResult;
-			} 
+			}
 		}
 
 		if (operationResult != CL_SUCCESS) {
 			std::cerr << "ERROR SETTING ARGUMENT FIX ROW KERNEL" << std::endl;
 			throw operationResult;
-		} 
-
-
-		//COLUMNS
+		}
 
 	
 
+
+	
 			
 		operationResult = commandQueue.enqueueReadBuffer(augmented_matrix, CL_TRUE, 0, matrice_augmentata.size() * sizeof(float)*2, matrice_augmentata.data(), NULL);
 
@@ -273,7 +284,7 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 			if (fmod(i, matrix_order * 2) == 0) {
 				std::cout <<  std::endl;
 			}
-			std::cout << matrice_augmentata[i] << "\t\t\t\t";
+			std::cout << matrice_augmentata[i] << "\t\t";
 		}
 				std::cout <<  std::endl;
 				std::cout <<  std::endl;
