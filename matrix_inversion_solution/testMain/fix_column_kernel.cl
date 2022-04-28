@@ -1,24 +1,24 @@
-__kernel void fixColumnKernel(__global float *matrix, int size, int rowId, int Aii){
 
-	__local float row[100];
+__kernel void fixColumnKernel(__global float *matrix, int size, int colId){
 
-	int colId = get_global_id(0);
+	int i = get_global_id(0);
+	int j = get_global_id(1);
 
-	row[colId] = matrix[size*rowId + colId];
+	__local float col[100];	
+	__local float AColIdj;
+	__local float colj[100];
 
-	row[colId] = row[colId]/Aii;
-	matrix[size*rowId + colId] = row[colId];
+	col[i] = matrix[i*size+ colId];
+
+	AColIdj = matrix[colId*size + j];
+
+	if(i != colId){
+		colj[i] = col[i] - AColIdj * col[i];
+	}
+
+	matrix[i*size + j] = col[i];
 }
 
-/*
-Eseguo questo kernel per ciascuna riga della matrice augmentata 
-l iterazione della matrice viene eseguita dal progetto c++ 
-il problema è quindi in una sola dimensione
 
-Prendo ciascun elemento della riga fino ad arrivare a metà della matrice partendo da sx 
-Copio la riga intera della matrice e la metto dentro un vettore riga
-Assegno ad ogni thread un elemento della riga
-Ogni elemento viene diviso per Aii ovvero lelemento sulla diagonale 
-*/
 
 

@@ -46,7 +46,7 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 		std::string deviceName;
 
 		// primo parametro funzione -> matrice da invertire (sofforma di vettore o vettore di vettori)
-		std::vector<float> matrice_input = { 1,2,3,4,5,6,7,8,9 };
+		std::vector<float> matrice_input = {2,0,2,0,4,2,2,2,2};
 
 		// Ordine Matrice  
 		// TODO CONTROLLARE  CHE LA MATRICE INSERITA SIA  QUADRATA !!
@@ -87,6 +87,7 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 				colonna = 0;
 			}
 		}
+	
 
 		// Recupero le piattaforme disponibili
 		operationResult = cl::Platform::get(&platforms);
@@ -134,7 +135,7 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 		context = cl::Context(chosenDevice);
 
 		// Creo la command queue per il device scelto
-		commandQueue = cl::CommandQueue(chosenDevice);
+		commandQueue = cl::CommandQueue(context, chosenDevice);
 
 		// Creo buffers n x 2n
 		cl::Buffer augmented_matrix(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, matrice_augmentata.size() * sizeof(float)*2, matrice_augmentata.data(), &operationResult);
@@ -171,6 +172,11 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 		/// Compilo i programmi
 		// TODO: capire come poter passare solo un  device  e non  la lista intera
 		operationResult = fix_column_program.build(devices);
+		if (operationResult == CL_BUILD_PROGRAM_FAILURE) {
+			std::string err;
+			fix_column_program.getBuildInfo(chosenDevice, CL_PROGRAM_BUILD_LOG, &err);
+			std::cout << err;
+		}
 		if (operationResult != CL_SUCCESS) {
 			std::cerr << "ERROR BUILDING PROGRAM FIX COLUMNS" << std::endl;
 			throw operationResult;
@@ -180,6 +186,11 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 		if (operationResult != CL_SUCCESS) {
 			std::cerr << "ERROR BUILDING PROGRAM FIX ROWS" << std::endl;
 			throw operationResult;
+		}
+		if (operationResult == CL_BUILD_PROGRAM_FAILURE) {
+			std::string err;
+			fix_row_program.getBuildInfo(chosenDevice, CL_PROGRAM_BUILD_LOG, &err);
+			std::cout << err;
 		}
 
 
@@ -196,14 +207,91 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 		if (operationResult != CL_SUCCESS) {
 			std::cerr << "ERROR CREATING FIX ROW KERNEL" << std::endl;
 			throw operationResult;
+		} 
+
+		// print matrice augmentata
+		for (int i = 0; i < matrice_augmentata.size(); i++) {
+			if (fmod(i, matrix_order * 2) == 0) {
+				std::cout <<  std::endl;
+			}
+			std::cout << matrice_augmentata[i] << "\t\t";
+		}
+				std::cout <<  std::endl;
+				std::cout <<  std::endl;
+				std::cout <<  std::endl;
+
+
+		///////////////////////////////////////////////////////////////
+		/// Imposto argomenti kernel + esecuzione kernel 
+		///
+		/// Prima eseguo il fix_row_kernel e poi il fix_column_kernel
+		/// Con dei cicli itero attraverso le colonne/righe della matrice augmentata
+		/// Ad ogni ciclo imposto nuovi parametri al kernel e procedo con una nuova esecuzione
+	
+		// ROWS
+		int elementoDiagonale = 0;
+		operationResult = fix_row_kernel.setArg(0, augmented_matrix);
+		operationResult = fix_row_kernel.setArg(1, matrix_order);
+		for (int i = 0; i < matrix_order;  i++) {
+			elementoDiagonale = matrice_augmentata[i * matrix_order + i];
+			std::cout << elementoDiagonale;
+			operationResult = fix_row_kernel.setArg(2, i);
+			operationResult = fix_row_kernel.setArg(3, elementoDiagonale);
+	
+			operationResult = commandQueue.enqueueNDRangeKernel(fix_row_kernel, cl::NullRange, cl::NDRange(2*matrix_order, 1), cl::NullRange, NULL, NULL);
+
+			if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR ROW KERNEL EXECUTION" << std::endl;
+				throw operationResult;
+			} 
+
 		}
 
+		if (operationResult != CL_SUCCESS) {
+			std::cerr << "ERROR SETTING ARGUMENT FIX ROW KERNEL" << std::endl;
+			throw operationResult;
+		} 
+
+		// COLUMNS 
+		operationResult = fix_column_kernel.setArg(0, augmented_matrix);
+		operationResult = fix_column_kernel.setArg(1, matrix_order);
+		for (int i = 0; i < matrix_order;  i++) {
+			operationResult = fix_column_kernel.setArg(2, i);
+			operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange(1, matrix_order), cl::NullRange, NULL, NULL);
+
+			if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR COLUMN KERNEL EXECUTION" << std::endl;
+				throw operationResult;
+			}
+		}
+
+		if (operationResult != CL_SUCCESS) {
+			std::cerr << "ERROR SETTING ARGUMENT FIX COLUMN KERNEL" << std::endl;
+			throw operationResult;
+		} 
 
 
-		// esecuzione kernel per ogni riga della matrice augmentata
-		for (int i = 0; i < matrix_order; i++) {
 			
+		operationResult = commandQueue.enqueueReadBuffer(augmented_matrix, CL_TRUE, 0, matrice_augmentata.size() * sizeof(float)*2, matrice_augmentata.data(), NULL);
+
+		if (operationResult!= CL_SUCCESS) {
+			std::cerr << "ERROR ENQUEUE READ BUFFER" << std::endl;
+			throw operationResult;
 		}
+			
+		for (int i = 0; i < matrice_augmentata.size(); i++) {
+			if (fmod(i, matrix_order * 2) == 0) {
+				std::cout <<  std::endl;
+			}
+			std::cout << matrice_augmentata[i] << "\t\t\t\t";
+		}
+				std::cout <<  std::endl;
+				std::cout <<  std::endl;
+				std::cout <<  std::endl;
+
+
+
+
 
 
 	}
