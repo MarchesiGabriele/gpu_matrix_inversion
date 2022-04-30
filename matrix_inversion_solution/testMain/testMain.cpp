@@ -46,7 +46,7 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 		std::string deviceName;
 
 		// primo parametro funzione -> matrice da invertire (sofforma di vettore o vettore di vettori)
-		std::vector<float> matrice_input = {1,2,3,1,1,1,4,1,2,4,7,4,0,-3,3,-1};
+		std::vector<float> matrice_input = {0,1,2,1,0,9,7,7,0};
 
 		// Ordine Matrice  
 		// TODO CONTROLLARE  CHE LA MATRICE INSERITA SIA  QUADRATA !!
@@ -153,6 +153,10 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 		std::ifstream fix_row_kernelFile("fix_row_kernel.cl");
 		std::string fix_row_src(std::istreambuf_iterator<char>(fix_row_kernelFile), (std::istreambuf_iterator<char>()));
 
+
+		std::ifstream pivot_kernel_file("pivot_kernel.cl");
+		std::string pivot_kernel_src(std::istreambuf_iterator<char>(pivot_kernel_file), (std::istreambuf_iterator<char>()));
+
 		///////////////////////////////////////////////////////////////
 		/// Creo programma usando il kernel
 		cl::Program fix_column_program(context, cl::Program::Sources(1, std::make_pair(fix_column_src.c_str(), fix_column_src.length() + 1)), &operationResult);
@@ -166,7 +170,12 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 			std::cerr << "ERROR CREATING PROGRAM FIX ROWS" << std::endl;
 			throw operationResult;
 		}
-	
+
+		cl::Program pivot_kernel_program(context, cl::Program::Sources(1, std::make_pair(pivot_kernel_src.c_str(), pivot_kernel_src.length() + 1)), &operationResult);
+		if (operationResult != CL_SUCCESS) {
+			std::cerr << "ERROR CREATING PROGRAM PIVOT KERNEL" << std::endl;
+			throw operationResult;
+		}
 		
 		///////////////////////////////////////////////////////////////
 		/// Compilo i programmi
@@ -193,6 +202,17 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 			std::cout << err;
 		}
 
+		operationResult = pivot_kernel_program.build(devices);
+		if (operationResult == CL_BUILD_PROGRAM_FAILURE) {
+			std::string err;
+			pivot_kernel_program.getBuildInfo(chosenDevice, CL_PROGRAM_BUILD_LOG, &err);
+			std::cout << err;
+		}
+		if (operationResult != CL_SUCCESS) {
+			std::cerr << "ERROR BUILDING PROGRAM pIVOT KERNEL" << std::endl;
+			throw operationResult;
+		}
+
 
 		///////////////////////////////////////////////////////////////
 		/// Creo i kernel
@@ -209,9 +229,11 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 			throw operationResult;
 		} 
 
-
-
-				std::cout << "start" << std::endl;
+		cl::Kernel pivot_kernel(pivot_kernel_program, "pivotElementsKernel", &operationResult);
+		if (operationResult != CL_SUCCESS) {
+			std::cerr << "ERROR CREATING PIVOT KERNEL" << std::endl;
+			throw operationResult;
+		} 
 
 
 		// print matrice augmentata
@@ -221,57 +243,59 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 			}
 			std::cout << matrice_augmentata[i] << "\t\t";
 		}
-				std::cout <<  std::endl;
-				std::cout <<  std::endl;
-				std::cout <<  std::endl;
-	
+
+		std::cout <<  std::endl;
+		std::cout <<  std::endl;
+		std::cout <<  std::endl;
+
 
 			
 		///////////////////////////////////////////////////////////////
 		/// Imposto argomenti kernel + esecuzione kernel 
 		///
-		/// Prima eseguo il fix_row_kernel e poi il fix_column_kernel
+		/// Prima eseguo il fix_row_kernel e poi il fix_column_kernel in modo alternato
 		/// Con dei cicli itero attraverso le colonne/righe della matrice augmentata
 		/// Ad ogni ciclo imposto nuovi parametri al kernel e procedo con una nuova esecuzione
-	
+		// Ci pensa openCL ad aspettare che un  kernel finisca prima di inizaire l'altro
 
-		operationResult = fix_column_kernel.setArg(0, augmented_matrix);
-		operationResult = fix_column_kernel.setArg(1, 2*matrix_order);
 		// ROWS
-		int elementoDiagonale = 0;
 		operationResult = fix_row_kernel.setArg(0, augmented_matrix);
-		// larghezza matrice augmentata
-		operationResult = fix_row_kernel.setArg(1, matrix_order * 2);
+		operationResult = fix_row_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
+		// COLUMNS
+		operationResult = fix_column_kernel.setArg(0, augmented_matrix); 
+		operationResult = fix_column_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
+		// PIVOT 
+		operationResult = pivot_kernel.setArg(0, augmented_matrix); 
+		operationResult = pivot_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
 		for (int i = 0; i < matrix_order; i++) {
-			//  TODO: calcolare elemento sulla diagonale dentro il kernel e non da qua fuori, questa dovrenne essere la solzuione al problem,a finales
-			elementoDiagonale = matrice_augmentata[i * matrix_order * 2 + i];
-			operationResult = fix_row_kernel.setArg(2, i);
-			std::cout << elementoDiagonale;
+			// PIVOT 
+			operationResult = pivot_kernel.setArg(2, i); // index riga su cui fare il pivot 
+			// come dimensione globale ho usato "2 * matrix_order, matrix_order" perchè se serve fare almeno un pivot, vengono toccati tutti gli elementi della matrice augmentata 
+			operationResult = commandQueue.enqueueNDRangeKernel(pivot_kernel, cl::NullRange, cl::NDRange(2 * matrix_order, matrix_order), cl::NullRange, NULL, NULL);
+			if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR SETTING ARGUMENT PIVOT KERNEL" << std::endl;
+				throw operationResult;
+			}
 
-			operationResult = commandQueue.enqueueNDRangeKernel(fix_row_kernel, cl::NullRange, cl::NDRange(2 * matrix_order, matrix_order), cl::NullRange, NULL, NULL);
+			// ROWS
+			operationResult = fix_row_kernel.setArg(2, i); // index riga da fixare
+			// come dimensione globale ho usato "2 * matrix_order, 1" perchè ogni kernel esegue l'operazione su tutti gli elementi di una sola riga 
+			operationResult = commandQueue.enqueueNDRangeKernel(fix_row_kernel, cl::NullRange, cl::NDRange(2 * matrix_order, 1), cl::NullRange, NULL, NULL);
+			if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR SETTING ARGUMENT FIX ROW KERNEL" << std::endl;
+				throw operationResult;
+			}
 			
-
-			//COLIUMNS
-
-			operationResult = fix_column_kernel.setArg(2, i);
-			operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange(2*matrix_order, matrix_order), cl::NullRange, NULL, NULL);
-
-
+			// COLUMNS
+			operationResult = fix_column_kernel.setArg(2, i); // index colonna da fixare
+			// come dimensione globale ho usato "2 * matrix_order, matrix_order" perchè ogni kernel esegue l'operazione su tutta la matrice augmentata
+			// ogni kernel considera una colonna da sistemare, ma per ogni elemento della colonna devo fixare l'intera riga quindi eseguo operazioni su tutti gli elementi della matrice augmentata
+			operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange(2 * matrix_order, matrix_order), cl::NullRange, NULL, NULL);
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR ROW KERNEL EXECUTION" << std::endl;
 				throw operationResult;
 			}
 		}
-
-		if (operationResult != CL_SUCCESS) {
-			std::cerr << "ERROR SETTING ARGUMENT FIX ROW KERNEL" << std::endl;
-			throw operationResult;
-		}
-
-	
-
-
-	
 			
 		operationResult = commandQueue.enqueueReadBuffer(augmented_matrix, CL_TRUE, 0, matrice_augmentata.size() * sizeof(float)*2, matrice_augmentata.data(), NULL);
 
@@ -286,24 +310,16 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 			}
 			std::cout << matrice_augmentata[i] << "\t\t";
 		}
-				std::cout <<  std::endl;
-				std::cout <<  std::endl;
-				std::cout <<  std::endl;
 
-
-
-
-
-
+		std::cout <<  std::endl;
+		std::cout <<  std::endl;
+		std::cout <<  std::endl;
 	}
 	catch (cl_int e) {
 		std::cerr << "ERRORE N°: " << e << std::endl;
 	}
-
-
 	return {};
 }
-
 
 
 int main() {

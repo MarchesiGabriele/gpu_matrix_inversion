@@ -15,6 +15,7 @@ __kernel void fixRowKernel(__global float *matrix, int size, int rowId){
 
 	__local float Aii;
 
+	/* scorro gli elementi della riga */
 	int colId = get_global_id(0);
 
 	row[colId] = matrix[size*rowId + colId];
