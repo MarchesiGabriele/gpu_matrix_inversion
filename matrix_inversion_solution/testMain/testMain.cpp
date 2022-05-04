@@ -3,7 +3,9 @@
 #include <stdio.h>
 #include <iostream>
 #include <fstream>
+#include <cstdlib>
 #include <string>
+#include <cmath>
 #define __CL_ENABLE_EXCEPTIONS
 
 
@@ -46,7 +48,15 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 		std::string deviceName;
 
 		// primo parametro funzione -> matrice da invertire (sofforma di vettore o vettore di vettori)
-		std::vector<float> matrice_input = {0,1,2,1,0,9,7,7,0};
+		int x = pow(3,2);
+		std::vector<float> matrice_input(x, 1);
+
+
+		for (int i = 0; i < x; i++) {
+			matrice_input[i] = rand();
+		}
+
+		std::cout << "matrice piena" << x << std::endl;
 
 		// Ordine Matrice  
 		// TODO CONTROLLARE  CHE LA MATRICE INSERITA SIA  QUADRATA !!
@@ -138,7 +148,8 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 		commandQueue = cl::CommandQueue(context, chosenDevice);
 
 		// Creo buffers n x 2n
-		cl::Buffer augmented_matrix(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, matrice_augmentata.size() * sizeof(float)*2, matrice_augmentata.data(), &operationResult);
+		std::cout<< matrice_augmentata.size()  << std::endl;
+		cl::Buffer augmented_matrix(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, matrice_augmentata.size() * sizeof(float), matrice_augmentata.data(), &operationResult);
 		if (operationResult != CL_SUCCESS) {
 			std::cerr << "ERROR CREATING BUFFERS" << std::endl;
 			throw operationResult;
@@ -239,11 +250,12 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 		// print matrice augmentata
 		for (int i = 0; i < matrice_augmentata.size(); i++) {
 			if (fmod(i, matrix_order * 2) == 0) {
-				std::cout <<  std::endl;
+				std::cout << std::endl;
 			}
 			std::cout << matrice_augmentata[i] << "\t\t";
 		}
 
+	
 		std::cout <<  std::endl;
 		std::cout <<  std::endl;
 		std::cout <<  std::endl;
@@ -296,21 +308,35 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 				throw operationResult;
 			}
 		}
-			
-		operationResult = commandQueue.enqueueReadBuffer(augmented_matrix, CL_TRUE, 0, matrice_augmentata.size() * sizeof(float)*2, matrice_augmentata.data(), NULL);
+		std::cout << "bip" << std::endl;
+		operationResult = commandQueue.finish();
+		std::cout << "bop" << std::endl;
 
 		if (operationResult!= CL_SUCCESS) {
 			std::cerr << "ERROR ENQUEUE READ BUFFER" << std::endl;
 			throw operationResult;
 		}
-			
+
+
+		std::cout<< matrice_augmentata.size()  << std::endl;
+		
+
+		// NB: la matrice augmentata è il doppio rispetto al numero di elementi iniziali
+		operationResult = commandQueue.enqueueReadBuffer(augmented_matrix, CL_TRUE, 0, matrice_augmentata.size() * sizeof(float), matrice_augmentata.data(), NULL);
+
+		if (operationResult!= CL_SUCCESS) {
+			std::cerr << "ERROR ENQUEUE READ BUFFER" << std::endl;
+			throw operationResult;
+		}
+
+	
+		// PRINT FINAL
 		for (int i = 0; i < matrice_augmentata.size(); i++) {
 			if (fmod(i, matrix_order * 2) == 0) {
-				std::cout <<  std::endl;
+				std::cout << std::endl;
 			}
 			std::cout << matrice_augmentata[i] << "\t\t";
 		}
-
 		std::cout <<  std::endl;
 		std::cout <<  std::endl;
 		std::cout <<  std::endl;
