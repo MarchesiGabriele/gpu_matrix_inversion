@@ -1,14 +1,15 @@
 ﻿  testMain.cpp
-C:\TESI\matlab-parallel-computation-tool\matrix_inversion_solution\testMain\testMain.cpp(51,9): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
-C:\TESI\matlab-parallel-computation-tool\matrix_inversion_solution\testMain\testMain.cpp(56,27): warning C4244: '=': conversion from 'int' to '_Ty', possible loss of data
+C:\TESI\matlab-parallel-computation-tool\matrix_inversion_solution\testMain\testMain.cpp(15,12): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
+C:\TESI\matlab-parallel-computation-tool\matrix_inversion_solution\testMain\testMain.cpp(53,9): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+C:\TESI\matlab-parallel-computation-tool\matrix_inversion_solution\testMain\testMain.cpp(58,32): warning C4244: '=': conversion from 'int' to '_Ty', possible loss of data
           with
           [
               _Ty=float
           ]
-C:\TESI\matlab-parallel-computation-tool\matrix_inversion_solution\testMain\testMain.cpp(63,20): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+C:\TESI\matlab-parallel-computation-tool\matrix_inversion_solution\testMain\testMain.cpp(65,20): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
   Generating code
-  2 of 572 functions ( 0.3%) were compiled, the rest were copied from previous compilation.
+  2 of 573 functions ( 0.3%) were compiled, the rest were copied from previous compilation.
     0 functions were new in current compilation
-    8 functions had inline decision re-evaluated but remain unchanged
+    1 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
   testMain.vcxproj -> C:\TESI\matlab-parallel-computation-tool\matrix_inversion_solution\x64\Release\testMain.exe

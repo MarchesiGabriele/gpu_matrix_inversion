@@ -12,6 +12,8 @@
 
 std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_order) {
 
+	srand(time(NULL));
+
 	// se altezza vettore è zero ritorno vettore vuoto
 	if (matrix_order == 0) {
 		return {};
@@ -48,12 +50,12 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 		std::string deviceName;
 
 		// primo parametro funzione -> matrice da invertire (sofforma di vettore o vettore di vettori)
-		int x = pow(3,2);
+		int x = pow(7000,2);
 		std::vector<float> matrice_input(x, 1);
 
 
 		for (int i = 0; i < x; i++) {
-			matrice_input[i] = rand();
+			matrice_input[i] = rand()%10+1;
 		}
 
 		std::cout << "matrice piena" << x << std::endl;
@@ -248,12 +250,7 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 
 
 		// print matrice augmentata
-		for (int i = 0; i < matrice_augmentata.size(); i++) {
-			if (fmod(i, matrix_order * 2) == 0) {
-				std::cout << std::endl;
-			}
-			std::cout << matrice_augmentata[i] << "\t\t";
-		}
+	
 
 	
 		std::cout <<  std::endl;
@@ -331,13 +328,25 @@ std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_ord
 
 	
 		// PRINT FINAL
-		for (int i = 0; i < matrice_augmentata.size(); i++) {
-			if (fmod(i, matrix_order * 2) == 0) {
-				std::cout << std::endl;
+		int count = 0;
+		int ind = 0;
+		for (int i = 1; i < matrice_augmentata.size(); i++) {
+			if (i == matrix_order*matrix_order) {
+				break;
 			}
-			std::cout << matrice_augmentata[i] << "\t\t";
+			if (fmod(i, matrix_order) == 0) {
+				std::cout << std::endl;
+				std::cout << count << " " << matrice_augmentata[ind] << " ";
+				ind += matrix_order * 2;
+				ind++;
+				count++;
+				continue;
+			}
+
 		}
-		std::cout <<  std::endl;
+			
+
+		std::cout <<  matrice_augmentata.size()/matrix_order*2 << std::endl;
 		std::cout <<  std::endl;
 		std::cout <<  std::endl;
 	}
