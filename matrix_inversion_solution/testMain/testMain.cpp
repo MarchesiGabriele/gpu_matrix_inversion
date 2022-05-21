@@ -11,9 +11,6 @@
 
 
 std::vector<int> matrix_inversion(std::vector<int> matrix_vector, int matrix_order) {
-
-	srand(time(NULL));
-
 	// se altezza vettore è zero ritorno vettore vuoto
 	if (matrix_order == 0) {
 		return {};
