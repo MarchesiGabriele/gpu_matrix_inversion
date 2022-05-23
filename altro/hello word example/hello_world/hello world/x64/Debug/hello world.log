@@ -1,0 +1,9 @@
+﻿  hello_world.cpp
+C:\matlab-parallel-computation-tool\hello word example\hello world\hello world\hello_world.cpp(51,26): warning C4302: 'cast di tipo': troncamento da 'const char *' a 'char'
+C:\matlab-parallel-computation-tool\hello word example\hello world\hello world\hello_world.cpp(51,37): warning C4302: 'cast di tipo': troncamento da 'const char *' a 'char'
+C:\matlab-parallel-computation-tool\hello word example\hello world\hello world\hello_world.cpp(51,37): fatal error C1001: Errore interno del compilatore.
+  (file del compilatore 'D:\a\_work\1\s\src\vctools\Compiler\CxxFE\sl\p1\c\convert.cpp', riga 13953)
+   Per evitare il problema, provare a semplificare o modificare le parti del programma indicate sopra.
+  Se possibile, specificare qui la procedura per riprodurre il problema: https://developercommunity.visualstudio.com
+  Per altre informazioni, scegliere Supporto tecnico dal menu ? di Visual C++
+   oppure aprire il file della Guida relativo al supporto tecnico.

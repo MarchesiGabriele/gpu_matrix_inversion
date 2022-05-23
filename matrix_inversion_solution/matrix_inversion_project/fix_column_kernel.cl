@@ -1,4 +1,3 @@
-
 __kernel void fixColumnKernel(__global float *matrix, int size, int colId){
 
 	/* valori colonna matrice*/

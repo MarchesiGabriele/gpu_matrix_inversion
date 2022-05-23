@@ -1,3 +1,3 @@
 ﻿  matrix_inversion_project.cpp
-C:\TESI\matlab-parallel-computation-tool\matrix_inversion_solution\matrix_inversion_project\matrix_inversion_project.cpp(53,20): warning C4244: 'inizializzazione': conversione da 'double' a 'int'. Possibile perdita di dati.
+C:\TESI\matlab-parallel-computation-tool\matrix_inversion_solution\matrix_inversion_project\matrix_inversion_project.cpp(131,21): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
   matrix_inversion_project.vcxproj -> C:\TESI\matlab-parallel-computation-tool\matrix_inversion_solution\x64\Release\matrix_inversion_project.lib

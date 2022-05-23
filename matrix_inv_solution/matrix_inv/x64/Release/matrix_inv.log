@@ -1,0 +1,3 @@
+﻿  matrix_inversion.cpp
+C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution\matrix_inv\matrix_inversion.cpp(131,21): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+  matrix_inv.vcxproj -> C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution\x64\Release\matrix_inv.lib
