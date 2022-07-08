@@ -145,10 +145,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="main_file.cpp" />
     <ClCompile Include="matrix_inversion.cpp" />
+    <ClCompile Include="matrix_multiply.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="matrix_inversion.h" />
+    <ClInclude Include="headers.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

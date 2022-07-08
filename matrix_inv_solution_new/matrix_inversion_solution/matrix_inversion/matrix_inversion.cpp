@@ -3,14 +3,11 @@
 #include <stdio.h>
 #include <iostream>
 #include <fstream>
-#include "matrix_inversion.h"
+#include <chrono>
 #define __CL_ENABLE_EXCEPTIONS
 
 
-
-
 	std::vector<float> matrix_inversion(std::vector<float> matrix_vector, int matrix_order) {
-
 		// KERNEL PER FIXARE COLONNE
 		const std::string fixColumnKernelString = R"(__kernel void fixColumnKernel(__global float *matrix, int size, int colId){
 	/* valori colonna matrice*/
@@ -137,6 +134,13 @@
 			// la dimensione di questa matrice � la dimensione globale
 			std::vector<float> matrice_augmentata = {};
 
+				
+			using namespace std::chrono;
+			// Tempo totale impiegato per eseguire la funzione matrix_inversio() 
+			steady_clock::time_point tempoTotaleInizio = steady_clock::now();
+			// Tempo impiegato dalla GPU per eseguire i kernel
+			steady_clock::time_point tempoComputazioneInizio;
+
 
 			// creo matrice identita
 			int index = 0;
@@ -225,19 +229,6 @@
 
 
 			///////////////////////////////////////////////////////////////
-			/// Recupero kernel dal file esterno
-		//	std::ifstream fix_column_kernelFile("fix_column_kernel.cl");
-		//	std::string fix_column_src(std::istreambuf_iterator<char>(fix_column_kernelFile), (std::istreambuf_iterator<char>()));
-
-			//std::ifstream fix_row_kernelFile("fix_row_kernel.cl");
-			//std::string fix_row_src(std::istreambuf_iterator<char>(fix_row_kernelFile), (std::istreambuf_iterator<char>()));
-
-
-			//std::ifstream pivot_kernel_file("pivot_kernel.cl");
-			//std::string pivot_kernel_src(std::istreambuf_iterator<char>(pivot_kernel_file), (std::istreambuf_iterator<char>()));
-
-
-			///////////////////////////////////////////////////////////////
 			/// Creo programma usando il kernel
 			cl::Program fix_column_program(context, cl::Program::Sources(1, std::make_pair(fixColumnKernelString.c_str(), fixColumnKernelString.length() + 1)), &operationResult);
 			if (operationResult != CL_SUCCESS) {
@@ -300,21 +291,18 @@
 			// RECUPERO INFO SUI PROGRAMMI
 			std::string nomi_kernel;
 			operationResult = fix_column_program.getInfo(CL_PROGRAM_KERNEL_NAMES, &nomi_kernel);
-			std::cout << "Nomi Kernel fix column: " << nomi_kernel << std::endl;
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR GETTING PROGRAM INFO" << std::endl;
 				throw operationResult;
 			}
 
 			operationResult = fix_row_program.getInfo(CL_PROGRAM_KERNEL_NAMES, &nomi_kernel);
-			std::cout << "Nomi Kernel fix row: " << nomi_kernel << std::endl;
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR GETTING PROGRAM INFO" << std::endl;
 				throw operationResult;
 			}
 
 			operationResult = pivot_kernel_program.getInfo(CL_PROGRAM_KERNEL_NAMES, &nomi_kernel);
-			std::cout << "Nomi Kernel pivot: " << nomi_kernel << std::endl;
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR GETTING PROGRAM INFO" << std::endl;
 				throw operationResult;
@@ -360,6 +348,7 @@
 			// PIVOT 
 			operationResult = pivot_kernel.setArg(0, augmented_matrix);
 			operationResult = pivot_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
+			tempoComputazioneInizio = steady_clock::now();
 			for (int i = 0; i < matrix_order; i++) {
 				// PIVOT 
 				operationResult = pivot_kernel.setArg(2, i); // index riga su cui fare il pivot 
@@ -390,6 +379,8 @@
 				}
 			}
 			operationResult = commandQueue.finish();
+			steady_clock::time_point tempoComputazioneFine = steady_clock::now();
+			duration<double> tempoComputazioneGPU = duration_cast<duration<double>> (tempoComputazioneFine - tempoComputazioneInizio);
 
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR ENQUEUE READ BUFFER" << std::endl;
@@ -403,8 +394,10 @@
 				std::cerr << "ERROR ENQUEUE READ BUFFER" << std::endl;
 				throw operationResult;
 			}
+	
 
-
+			
+			// Recupero solo la matrice inversa da quella augmentata
 			std::vector<float> result = {};
 			int riga = 0;
 			for (int i = 0; i < matrice_augmentata.size(); i++) {
@@ -415,8 +408,14 @@
 					result.push_back(matrice_augmentata[i]);
 				}
 			}
+		
+			// stampo tempo impiegato
 
-
+			steady_clock::time_point tempoTotaleFine= steady_clock::now();
+			duration<double> tempoTotale = duration_cast<duration<double>> (tempoTotaleFine - tempoTotaleInizio);
+			std::cout << "Tempo Totale Impiegato: " << tempoTotale.count() << " seconds" <<  std::endl;
+			std::cout << "Tempo Computazione: " << tempoComputazioneGPU.count() << " seconds" <<std::endl;
+			
 			return result;
 		}
 		catch (cl_int e) {
@@ -427,17 +426,4 @@
 
 
 
-	int main(){
-		std::vector<float> vet = {1,3,5,2,4,3,2,3,4};
-		int ordine = sqrt(vet.size());
-		std::vector<float> c =  matrix_inversion(vet, ordine);
-
-		for (int i = 0; i < c.size(); i++) {
-			if ( i % ordine == 0) {
-				std::cout <<std::endl;
-			}
-			std::cout << c[i] << "\t\t";
-		}
-
-	}
 

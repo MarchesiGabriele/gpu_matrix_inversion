@@ -18,9 +18,15 @@
     <ClCompile Include="matrix_inversion.cpp">
       <Filter>File di risorse</Filter>
     </ClCompile>
+    <ClCompile Include="matrix_multiply.cpp">
+      <Filter>File di risorse</Filter>
+    </ClCompile>
+    <ClCompile Include="main_file.cpp">
+      <Filter>File di risorse</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="matrix_inversion.h">
+    <ClInclude Include="headers.h">
       <Filter>File di intestazione</Filter>
     </ClInclude>
   </ItemGroup>
