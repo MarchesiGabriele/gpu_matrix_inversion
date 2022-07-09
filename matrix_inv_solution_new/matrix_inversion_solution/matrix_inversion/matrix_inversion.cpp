@@ -10,83 +10,83 @@
 	std::vector<float> matrix_inversion(std::vector<float> matrix_vector, int matrix_order) {
 		// KERNEL PER FIXARE COLONNE
 		const std::string fixColumnKernelString = R"(__kernel void fixColumnKernel(__global float *matrix, int size, int colId){
-	/* valori colonna matrice*/
-	int i = get_global_id(1);
+		/* valori colonna matrice*/
+		int i = get_global_id(1);
 
-	/* valori riga matrice*/
-	int j = get_global_id(0);
+		/* valori riga matrice*/
+		int j = get_global_id(0);
 
-	/* colonna indicata da colId */ 
-	__local float col[100];	
+		/* colonna indicata da colId */ 
+		__local float col[100];	
 
-	/* elemento della riga corrispondente a colId */
-	__local float AColIdj;
+		/* elemento della riga corrispondente a colId */
+		__local float AColIdj;
 
-	/* riga indicata da i */
-	__local float colj[100];
+		/* riga indicata da i */
+		__local float colj[100];
 
-	col[i] = matrix[i*size+ colId];
+		col[i] = matrix[i*size+ colId];
 
-	/* controllo se elemento � diverso da zero, se lo � gi� non devo fare nulla*/
-	if(col[i] != 0){
-		colj[i] = matrix[i*size+j];
-		AColIdj = matrix[colId*size + j];
+		/* controllo se elemento � diverso da zero, se lo � gi� non devo fare nulla*/
+		if(col[i] != 0){
+			colj[i] = matrix[i*size+j];
+			AColIdj = matrix[colId*size + j];
 
-		/* controllo  di non essere sulla diagonale */
-		if(i != colId){
-			colj[i] = colj[i] - AColIdj * col[i];
+			/* controllo  di non essere sulla diagonale */
+			if(i != colId){
+				colj[i] = colj[i] - AColIdj * col[i];
+			}
+			matrix[i*size + j] = colj[i];
 		}
-		matrix[i*size + j] = colj[i];
-	}
-	})";
+		})";
 
 		const std::string fixRowKernelString = R"(__kernel void fixRowKernel(__global float *matrix, int size, int rowId){
 
-	__local float row[100];
+		__local float row[100];
 
-	__local float Aii;
+		__local float Aii;
 
-	/* scorro gli elementi della riga */
-	int colId = get_global_id(0);
+		/* scorro gli elementi della riga */
+		int colId = get_global_id(0);
 
-	row[colId] = matrix[size*rowId + colId];
-	Aii = matrix[size*rowId + rowId];
+		row[colId] = matrix[size*rowId + colId];
+		Aii = matrix[size*rowId + rowId];
 
-	row[colId] = row[colId]/Aii;
-	matrix[size*rowId + colId] = row[colId];
-	})";
+		row[colId] = row[colId]/Aii;
+		matrix[size*rowId + colId] = row[colId];
+		})";
 
 		const std::string pivotKernelString = R"(__kernel void pivotElementsKernel(__global float *matrix, int size, int rowId){
 
-	__local float selectedRow[100];
+		__local float selectedRow[100];
 
-	__local float Aii;
+		__local float Aii;
 
-	/* itero colonne per ciascuna riga*/
-	int col = get_global_id(0);
+		/* itero colonne per ciascuna riga*/
+		int col = get_global_id(0);
 
-	/* itero righe */
-	int row = get_global_id(1);
+		/* itero righe */
+		int row = get_global_id(1);
 
-	Aii = matrix[size*rowId + rowId];
+		Aii = matrix[size*rowId + rowId];
 
-	if(Aii == 0){
-		/* riempio la riga corrispondente al mio rowId */
-		selectedRow[col] = matrix[size*rowId + col];
+		if(Aii == 0){
+			/* riempio la riga corrispondente al mio rowId */
+			selectedRow[col] = matrix[size*rowId + col];
 
-		for(int i = 0; i<size; i++){
-			/* evito di sommare la stessa riga a se stessa */
-			if(rowId != row){
-				selectedRow[col] = selectedRow[col] + matrix[size*row + col];
+			for(int i = 0; i<size; i++){
+				/* evito di sommare la stessa riga a se stessa */
+				if(rowId != row){
+					selectedRow[col] = selectedRow[col] + matrix[size*row + col];
+				}
 			}
+			matrix[size*rowId + col] = selectedRow[col];
 		}
-		matrix[size*rowId + col] = selectedRow[col];
-	}
-	})";
+		})";
 
 
 		// se altezza vettore � zero ritorno vettore vuoto
-		if (matrix_order == 0) {
+		if (matrix_order <= 0) {
 			return {};
 		}
 
@@ -118,7 +118,15 @@
 			std::string platformVendor;
 			std::string platformVersion;
 
+
+			// DEVICE INFO
 			std::string deviceName;
+			cl_ulong globalCacheSize;
+			cl_ulong localMemSize;
+			cl_ulong maxConstBufferSize;
+			size_t maxWorkGroupSize;
+			cl_uint maxWorkItemDimensions;
+			cl_ulong globalMemSize;
 
 			// primo parametro funzione -> matrice da invertire (sofforma di vettore o vettore di vettori)
 			std::vector<float> matrice_input = matrix_vector;
@@ -183,17 +191,14 @@
 				i.getInfo(CL_PLATFORM_NAME, &platformName);
 				i.getInfo(CL_PLATFORM_VENDOR, &platformVendor);
 				i.getInfo(CL_PLATFORM_VERSION, &platformVersion);
-
 				std::cout << "PIATTAFORMA: " << platformName << std::endl;
 				std::cout << "VENDITORE: " << platformVendor << std::endl;
 				std::cout << "VERSIONE: " << platformVersion << std::endl;
-
 				std::cout << std::endl;
 			}
 
-			// TODO: PERMETTERE ALL'UTENTE DI SCEGLIERE QUALE PIATTAFORMA USARE
+			// Scelgo piattaforma AMD 
 			chosenPlatform = platforms[0];
-
 
 			// Recupero i device disponibili
 			operationResult = chosenPlatform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
@@ -202,15 +207,27 @@
 				throw operationResult;
 			}
 
+			// https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clGetDeviceInfo.html
 			std::cout << "Device disponibili: " << std::endl;
 			for (cl::Device i : devices) {
 				i.getInfo(CL_DEVICE_NAME, &deviceName);
+				i.getInfo(CL_DEVICE_GLOBAL_MEM_CACHE_SIZE, &globalCacheSize);
+				i.getInfo(CL_DEVICE_LOCAL_MEM_SIZE, &localMemSize);
+				i.getInfo(CL_DEVICE_GLOBAL_MEM_SIZE, &globalMemSize);
+				i.getInfo(CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE, &maxConstBufferSize);
+				i.getInfo(CL_DEVICE_MAX_WORK_GROUP_SIZE, &maxWorkGroupSize);
+				i.getInfo(CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, &maxWorkItemDimensions);
 				std::cout << "DEVICE: " << deviceName << std::endl;
+				std::cout << "Global Cache size: " << globalCacheSize << " bytes" << std::endl;
+				std::cout << "Global mem size: " << globalMemSize  << " bytes" << std::endl;
+				std::cout << "Local mem size: " <<localMemSize << " bytes"<< std::endl;
+				std::cout << "Max Const Buffer Size: " << maxConstBufferSize << " bytes"<< std::endl;
+				std::cout << "Max Work Group Size: " << maxWorkGroupSize << std::endl;
+				std::cout << "Max Work Item dimensions: " << maxWorkItemDimensions << std::endl;
 				std::cout << std::endl;
 			}
 
-
-			// TODO: PERMETTERE ALL'UTENTE DI SCEGLIERE QUALE DEVICE USARE
+			// Scelgo scheda grafica come DEVICE
 			chosenDevice = devices[0];
 
 			// Creo il context per il device scelto
