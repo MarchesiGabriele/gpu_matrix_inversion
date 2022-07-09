@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <iomanip>
 #define __CL_ENABLE_EXCEPTIONS
 
 
@@ -129,22 +130,37 @@ void matrix_multiply(std::vector<float> matriceB, std::vector<float> matriceA) {
 		// leggo i risultati dell'operazione e li sposto in memoria host
 		result = commandQueue.enqueueReadBuffer(bufferC, CL_TRUE, 0, vettoreC.size() * sizeof(float), vettoreC.data(), NULL);
 
-
-		std::cout << "Matrice identità finale:" << std::endl;
-	
-		// stampo risultato
+		// Controllo che matrice finale sia matrice identità
 		int ordine = sqrt(matriceA.size());
+		int riga = 0; 
 		for (int i = 0; i < vettoreC.size(); i++) {
+			// Controllo che elemento su diagonale sia uguale ad 1
+			if (i == (riga + riga*ordine)) {
+				if((vettoreC[i] - 1) > 1e5){
+					std::cout << "ERRORE, DIAGONALE DIVERSO DA 1. ." << vettoreC[i] << std::endl;
+					return;
+				}
+			}
+			else {
+				if(vettoreC[i] > 1e5){
+					std::cout << "ERRORE, NON DIAGONALE DIVERSO DA 0" << std::endl;
+					return;
+				}
+			}
+			if (i != 0 && (i % ordine) == 0) {
+				riga++;
+			}
+		}
+
+		std::cout << "OK" << std::endl;
+
+		// stampo risultato
+		/*for (int i = 0; i < vettoreC.size(); i++) {
 			if ( (i % ordine) == 0) {
 				std::cout <<std::endl;
 			}
 			std::cout << vettoreC[i] << "\t\t";
-		}
-
-
-		std::cout << std::endl;
-		std::cout << std::endl;
-
+		} */
 
 		if (result != CL_SUCCESS) {
 			std::cerr << "ERROR ENQUEUE READ BUFFER" << std::endl;
