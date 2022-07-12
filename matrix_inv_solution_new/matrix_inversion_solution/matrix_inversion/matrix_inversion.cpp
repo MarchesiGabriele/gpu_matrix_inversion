@@ -18,13 +18,13 @@
 		int i = get_global_id(1);
 	
 		/* colonna indicata da colId, formata da "size" elementi */ 
-		__local float col[1024];	
+		__local float col[1];	
 
 		/* j-esimo elemento della riga corrispondente a colId */
 		__local float AColIdj;
 
 		/* colonna indicata da i, formata da "size" elementi*/
-		__local float colj[2048];
+		__local float colj[1];
 
 		col[i] = matrix[i*size+ colId];
 
@@ -41,7 +41,7 @@
 
 		const std::string fixRowKernelString = R"(__kernel void fixRowKernel(__global float *matrix, int size, int rowId){
 
-		__local float row[2048];
+		__local float row[1];
 
 		__local float Aii;
 
@@ -62,7 +62,7 @@
 		// Se trovo un elemento sulla diagonale = 0, prendo le altre righe e gliele sommo. 
 		const std::string pivotKernelString = R"(__kernel void pivotElementsKernel(__global float *matrix, int size, int rowId){
 
-		__local float selectedRow[2048];
+		__local float selectedRow[0];
 
 		__local float Aii;
 
@@ -369,13 +369,11 @@
 			operationResult = pivot_kernel.setArg(0, augmented_matrix);
 			operationResult = pivot_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
 			tempoComputazioneInizio = steady_clock::now();
-			const int localDim1 = 8;
-			const int localDim2= 8;
 			for (int i = 0; i < matrix_order; i++) { 
 				// PIVOT
 				operationResult = pivot_kernel.setArg(2, i); // index riga su cui fare il pivot 
 				// come dimensione globale ho usato "2 * matrix_order, matrix_order" perch� se serve fare almeno un pivot, vengono toccati tutti gli elementi della matrice augmentata 
-				operationResult = commandQueue.enqueueNDRangeKernel(pivot_kernel, cl::NullRange, cl::NDRange(2 * matrix_order, matrix_order), cl::NullRange, NULL, NULL);
+				operationResult = commandQueue.enqueueNDRangeKernel(pivot_kernel, cl::NullRange, cl::NDRange(matrix_order, matrix_order), cl::NullRange, NULL, NULL);
 				if (operationResult != CL_SUCCESS) {
 					std::cerr << "ERROR SETTING ARGUMENT PIVOT KERNEL" << std::endl;
 					throw operationResult;
@@ -384,7 +382,7 @@
 				// ROWS
 				operationResult = fix_row_kernel.setArg(2, i); // index riga da fixare
 				// come dimensione globale ho usato "2 * matrix_order, 1" perch� ogni kernel esegue l'operazione su tutti gli elementi di una sola riga 
-				operationResult = commandQueue.enqueueNDRangeKernel(fix_row_kernel, cl::NullRange, cl::NDRange(2 * matrix_order, 1),  cl::NullRange, NULL, NULL);
+				operationResult = commandQueue.enqueueNDRangeKernel(fix_row_kernel, cl::NullRange, cl::NDRange( matrix_order, 1),  cl::NullRange, NULL, NULL);
 				if (operationResult != CL_SUCCESS) {
 					std::cerr << "ERROR SETTING ARGUMENT FIX ROW KERNEL" << std::endl;
 					throw operationResult;
@@ -394,7 +392,7 @@
 				operationResult = fix_column_kernel.setArg(2, i); // index colonna da fixare
 				// come dimensione globale ho usato "2 * matrix_order, matrix_order" perch� ogni kernel esegue l'operazione su tutta la matrice augmentata
 				// ogni kernel considera una colonna da sistemare, ma per ogni elemento della colonna devo fixare l'intera riga quindi eseguo operazioni su tutti gli elementi della matrice augmentata
-				operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange(2 * matrix_order, matrix_order), cl::NullRange, NULL, NULL);
+				operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange( matrix_order, matrix_order), cl::NullRange, NULL, NULL);
 				if (operationResult != CL_SUCCESS) {
 					std::cerr << "ERROR ROW KERNEL EXECUTION" << std::endl;
 					throw operationResult;
