@@ -28,15 +28,13 @@
 
 		col[i] = matrix[i*size+ colId];
 
-		/* controllo se elemento � diverso da zero, se lo � gi� non devo fare nulla*/
-		if(col[i] != 0){
+		/* controllo se elemento è diverso da zero, se lo è già non devo fare nulla*/
+		/* controllo anche di non essere sulla diagonale */
+		if(col[i] != 0 && i != colId){
 			rowj[i] = matrix[i*size+j];
 			AColIdj = matrix[colId*size + j];
 
-			/* controllo  di non essere sulla diagonale */
-			if(i != colId){
-				rowj[i] = rowj[i] - AColIdj * col[i];
-			}
+			rowj[i] = rowj[i] - AColIdj * col[i];
 			matrix[i*size + j] = rowj[i];
 		}
 		})";
@@ -47,11 +45,15 @@
 
 		__local float Aii;
 
-		/* scorro gli elementi della riga */
+		/* scorro orizzontalmente la matrice */
 		int colId = get_global_id(0);
 
-		row[colId] = matrix[size*rowId + colId];
 		Aii = matrix[size*rowId + rowId];
+		if(Aii == 1){
+			return;
+		}
+
+		row[colId] = matrix[size*rowId + colId];
 
 		row[colId] = row[colId]/Aii;
 		matrix[size*rowId + colId] = row[colId];
