@@ -10,33 +10,34 @@
 	std::vector<float> matrix_inversion(std::vector<float> matrix_vector, int matrix_order) {
 		// KERNEL PER FIXARE COLONNE
 		const std::string fixColumnKernelString = R"(__kernel void fixColumnKernel(__global float *matrix, int size, int colId){
-		/* valori colonna matrice*/
-		int i = get_global_id(1);
-
-		/* valori riga matrice*/
+		
+		/* valori di una riga, itero matrice orizzontalmente*/
 		int j = get_global_id(0);
 
-		/* colonna indicata da colId */ 
+		/* valori di una colonna, itero matrice verticalmente*/
+		int i = get_global_id(1);
+
+		/* colonna indicata da colId, formata da "size" elementi */ 
 		__local float col[100];	
 
-		/* elemento della riga corrispondente a colId */
+		/* j-esimo elemento della riga corrispondente a colId */
 		__local float AColIdj;
 
-		/* riga indicata da i */
-		__local float colj[100];
+		/* riga indicata da i, formata da "2*size" elementi*/
+		__local float rowj[100];
 
 		col[i] = matrix[i*size+ colId];
 
 		/* controllo se elemento � diverso da zero, se lo � gi� non devo fare nulla*/
 		if(col[i] != 0){
-			colj[i] = matrix[i*size+j];
+			rowj[i] = matrix[i*size+j];
 			AColIdj = matrix[colId*size + j];
 
 			/* controllo  di non essere sulla diagonale */
 			if(i != colId){
-				colj[i] = colj[i] - AColIdj * col[i];
+				rowj[i] = rowj[i] - AColIdj * col[i];
 			}
-			matrix[i*size + j] = colj[i];
+			matrix[i*size + j] = rowj[i];
 		}
 		})";
 
@@ -56,18 +57,21 @@
 		matrix[size*rowId + colId] = row[colId];
 		})";
 
+		// Eseguo pivoting per evitare che elementi della diagonale siano = 0. 
+		// Se trovo un elemento sulla diagonale = 0, prendo le altre righe e gliele sommo. 
 		const std::string pivotKernelString = R"(__kernel void pivotElementsKernel(__global float *matrix, int size, int rowId){
 
 		__local float selectedRow[100];
 
 		__local float Aii;
 
-		/* itero colonne per ciascuna riga*/
+		/* itero matrice orizzontalmente*/
 		int col = get_global_id(0);
 
-		/* itero righe */
+		/* itero matrice verticalmente*/
 		int row = get_global_id(1);
-
+		
+		/* elemento sulla diagonale della matrice */
 		Aii = matrix[size*rowId + rowId];
 
 		if(Aii == 0){
@@ -281,7 +285,6 @@
 				throw operationResult;
 			}
 
-
 			operationResult = fix_row_program.build(devices);
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR BUILDING PROGRAM FIX ROWS" << std::endl;
@@ -370,7 +373,7 @@
 				// PIVOT 
 				operationResult = pivot_kernel.setArg(2, i); // index riga su cui fare il pivot 
 				// come dimensione globale ho usato "2 * matrix_order, matrix_order" perch� se serve fare almeno un pivot, vengono toccati tutti gli elementi della matrice augmentata 
-				operationResult = commandQueue.enqueueNDRangeKernel(pivot_kernel, cl::NullRange, cl::NDRange(2 * matrix_order, matrix_order), cl::NullRange, NULL, NULL);
+				operationResult = commandQueue.enqueueNDRangeKernel(pivot_kernel, cl::NullRange, cl::NDRange(2 * matrix_order, matrix_order) , cl::NDRange(), NULL, NULL);
 				if (operationResult != CL_SUCCESS) {
 					std::cerr << "ERROR SETTING ARGUMENT PIVOT KERNEL" << std::endl;
 					throw operationResult;
