@@ -438,6 +438,7 @@
 			std::cout << "Tempo Totale Impiegato: " << tempoTotale.count() << " seconds" <<  std::endl;
 			std::cout << "Tempo Computazione: " << tempoComputazioneGPU.count() << " seconds" <<std::endl;
 			
+			
 			return result;
 		}
 		catch (cl_int e) {

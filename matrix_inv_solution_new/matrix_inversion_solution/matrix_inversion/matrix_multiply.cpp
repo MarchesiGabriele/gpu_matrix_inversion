@@ -144,6 +144,7 @@ void matrix_multiply(std::vector<float> matriceB, std::vector<float> matriceA) {
 			else {
 				if(vettoreC[i] > 1e5){
 					std::cout << "ERRORE, NON DIAGONALE DIVERSO DA 0" << std::endl;
+					std::cout << vettoreC[i] << "!=" << 0 << std::endl;
 					return;
 				}
 			}
