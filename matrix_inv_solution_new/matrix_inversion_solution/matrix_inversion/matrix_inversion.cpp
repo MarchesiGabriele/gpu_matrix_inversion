@@ -13,42 +13,41 @@
 		
 		/* valori di una riga, itero matrice orizzontalmente*/
 		int j = get_global_id(0);
-
+	
 		/* valori di una colonna, itero matrice verticalmente*/
 		int i = get_global_id(1);
-
+	
 		/* colonna indicata da colId, formata da "size" elementi */ 
-		__local float col[100];	
+		__local float col[1024];	
 
 		/* j-esimo elemento della riga corrispondente a colId */
 		__local float AColIdj;
 
-		/* riga indicata da i, formata da "2*size" elementi*/
-		__local float rowj[100];
+		/* colonna indicata da i, formata da "size" elementi*/
+		__local float colj[2048];
 
 		col[i] = matrix[i*size+ colId];
 
 		/* controllo se elemento è diverso da zero, se lo è già non devo fare nulla*/
 		/* controllo anche di non essere sulla diagonale */
-		if(col[i] != 0 && i != colId){
-			rowj[i] = matrix[i*size+j];
+		if(col[i] != 0 || i != colId){
+			colj[i] = matrix[i*size+j];
 			AColIdj = matrix[colId*size + j];
 
-			rowj[i] = rowj[i] - AColIdj * col[i];
-			matrix[i*size + j] = rowj[i];
+			colj[i] = colj[i] - AColIdj * col[i];
+			matrix[i*size + j] = colj[i];
 		}
 		})";
 
 		const std::string fixRowKernelString = R"(__kernel void fixRowKernel(__global float *matrix, int size, int rowId){
 
-		__local float row[100];
+		__local float row[2048];
 
 		__local float Aii;
 
 		/* scorro orizzontalmente la matrice */
 		int colId = get_global_id(0);
-
-		Aii = matrix[size*rowId + rowId];
+			Aii = matrix[size*rowId + rowId];
 		if(Aii == 1){
 			return;
 		}
@@ -63,16 +62,16 @@
 		// Se trovo un elemento sulla diagonale = 0, prendo le altre righe e gliele sommo. 
 		const std::string pivotKernelString = R"(__kernel void pivotElementsKernel(__global float *matrix, int size, int rowId){
 
-		__local float selectedRow[100];
+		__local float selectedRow[2048];
 
 		__local float Aii;
 
 		/* itero matrice orizzontalmente*/
 		int col = get_global_id(0);
-
+	
 		/* itero matrice verticalmente*/
 		int row = get_global_id(1);
-		
+			
 		/* elemento sulla diagonale della matrice */
 		Aii = matrix[size*rowId + rowId];
 
@@ -356,7 +355,6 @@
 			///////////////////////////////////////////////////////////////
 			/// Imposto argomenti kernel + esecuzione kernel 
 			///
-			/// Prima eseguo il fix_row_kernel e poi il fix_column_kernel in modo alternato
 			/// Con dei cicli itero attraverso le colonne/righe della matrice augmentata
 			/// Ad ogni ciclo imposto nuovi parametri al kernel e procedo con una nuova esecuzione
 			// Ci pensa openCL ad aspettare che un  kernel finisca prima di inizaire l'altro
@@ -371,11 +369,13 @@
 			operationResult = pivot_kernel.setArg(0, augmented_matrix);
 			operationResult = pivot_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
 			tempoComputazioneInizio = steady_clock::now();
-			for (int i = 0; i < matrix_order; i++) {
-				// PIVOT 
+			const int localDim1 = 8;
+			const int localDim2= 8;
+			for (int i = 0; i < matrix_order; i++) { 
+				// PIVOT
 				operationResult = pivot_kernel.setArg(2, i); // index riga su cui fare il pivot 
 				// come dimensione globale ho usato "2 * matrix_order, matrix_order" perch� se serve fare almeno un pivot, vengono toccati tutti gli elementi della matrice augmentata 
-				operationResult = commandQueue.enqueueNDRangeKernel(pivot_kernel, cl::NullRange, cl::NDRange(2 * matrix_order, matrix_order) , cl::NDRange(), NULL, NULL);
+				operationResult = commandQueue.enqueueNDRangeKernel(pivot_kernel, cl::NullRange, cl::NDRange(2 * matrix_order, matrix_order), cl::NullRange, NULL, NULL);
 				if (operationResult != CL_SUCCESS) {
 					std::cerr << "ERROR SETTING ARGUMENT PIVOT KERNEL" << std::endl;
 					throw operationResult;
@@ -384,7 +384,7 @@
 				// ROWS
 				operationResult = fix_row_kernel.setArg(2, i); // index riga da fixare
 				// come dimensione globale ho usato "2 * matrix_order, 1" perch� ogni kernel esegue l'operazione su tutti gli elementi di una sola riga 
-				operationResult = commandQueue.enqueueNDRangeKernel(fix_row_kernel, cl::NullRange, cl::NDRange(2 * matrix_order, 1), cl::NullRange, NULL, NULL);
+				operationResult = commandQueue.enqueueNDRangeKernel(fix_row_kernel, cl::NullRange, cl::NDRange(2 * matrix_order, 1),  cl::NullRange, NULL, NULL);
 				if (operationResult != CL_SUCCESS) {
 					std::cerr << "ERROR SETTING ARGUMENT FIX ROW KERNEL" << std::endl;
 					throw operationResult;

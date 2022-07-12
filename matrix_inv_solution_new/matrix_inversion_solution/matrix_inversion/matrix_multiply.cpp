@@ -137,7 +137,8 @@ void matrix_multiply(std::vector<float> matriceB, std::vector<float> matriceA) {
 			// Controllo che elemento su diagonale sia uguale ad 1
 			if (i == (riga + riga*ordine)) {
 				if((vettoreC[i] - 1) > 1e5){
-					std::cout << "ERRORE, DIAGONALE DIVERSO DA 1. ." << vettoreC[i] << std::endl;
+					std::cout << "ERRORE, DIAGONALE DIVERSO DA 1" << std::endl;
+					std::cout << vettoreC[i] << "!=" << 1 << std::endl;
 					return;
 				}
 			}

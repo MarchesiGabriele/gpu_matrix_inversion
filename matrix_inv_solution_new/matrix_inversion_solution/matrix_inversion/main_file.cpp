@@ -5,6 +5,7 @@
 
 
 int main(){
+	// Theoretical max is 16384
 	#define N 1024 
 	#define REP 1
 
