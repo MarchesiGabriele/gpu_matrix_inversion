@@ -154,7 +154,8 @@
 			steady_clock::time_point tempoFixRowInizio;
 			steady_clock::time_point tempoFixRowFine;
 
-				
+			steady_clock::time_point inizioAugMat= steady_clock::now();
+
 			// Creo matrice identità e la matrice Augmentata
 			int riga = 0; 
 			for (int i = 0; i < matrice_input.size()*2; i++) {
@@ -176,7 +177,14 @@
 				}
 			}
 
+			steady_clock::time_point fineAugMat= steady_clock::now();
+			duration<double> tempoAugMat= duration_cast<duration<double>> (fineAugMat- inizioAugMat);
+			std::cout << "Tempo Aug Mat: " << tempoAugMat.count() << " seconds" << std::endl;
+
+
+
 			// Recupero le piattaforme disponibili
+			steady_clock::time_point inizioRecuperoPlat= steady_clock::now();
 			operationResult = cl::Platform::get(&platforms);
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR GETTING PLATFORM" << std::endl;
@@ -193,6 +201,12 @@
 				std::cout << "VERSIONE: " << platformVersion << std::endl;
 				std::cout << std::endl;
 			}
+
+
+			steady_clock::time_point fineRecuperoPlat= steady_clock::now();
+			duration<double> tempoRecuperoPlat= duration_cast<duration<double>> (fineRecuperoPlat- inizioRecuperoPlat);
+			std::cout << "Tempo Recupero Plat: " << tempoRecuperoPlat.count() << " seconds" << std::endl;
+
 
 			// Scelgo piattaforma AMD 
 			chosenPlatform = platforms[0];
@@ -224,24 +238,43 @@
 				std::cout << std::endl;
 			}
 
+
 			// Scelgo scheda grafica come DEVICE
 			chosenDevice = devices[0];
 
 			// Creo il context per il device scelto
+			steady_clock::time_point inizioCtx= steady_clock::now();
 			context = cl::Context(chosenDevice);
 
+			steady_clock::time_point fineCtx= steady_clock::now();
+			duration<double> tempoCtx= duration_cast<duration<double>> (fineCtx- inizioCtx);
+			std::cout << "Tempo Context" << tempoCtx.count() << " seconds" << std::endl;
+
 			// Creo la command queue per il device scelto
+			steady_clock::time_point inizioCq= steady_clock::now();
 			commandQueue = cl::CommandQueue(context, chosenDevice);
+			
+			steady_clock::time_point fineCq= steady_clock::now();
+			duration<double> tempoCq= duration_cast<duration<double>> (fineCq- inizioCq);
+			std::cout << "Tempo Comman Queue: " << tempoCq.count() << " seconds" << std::endl;
+
+
 
 			// Creo buffers n x 2n
+			steady_clock::time_point inizioCreazioneBuffer= steady_clock::now();
 			std::cout << matrice_augmentata.size() << std::endl;
 			cl::Buffer augmented_matrix(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, matrice_augmentata.size() * sizeof(float), matrice_augmentata.data(), &operationResult);
+			steady_clock::time_point fineCreazioneBuffer= steady_clock::now();
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR CREATING BUFFERS" << std::endl;
 				throw operationResult;
 			}
 
+			duration<double> tempoCreazioneBuffer = duration_cast<duration<double>> (fineCreazioneBuffer- inizioCreazioneBuffer);
+			std::cout << "Tempo Creazione Buffer: " << tempoCreazioneBuffer.count() << " seconds" <<  std::endl;
 
+
+			steady_clock::time_point inizioCreazioneProgrammi= steady_clock::now();
 			///////////////////////////////////////////////////////////////
 			/// Creo programma usando il kernel
 			cl::Program fix_column_program(context, cl::Program::Sources(1, std::make_pair(fixColumnKernelString.c_str(), fixColumnKernelString.length() + 1)), &operationResult);
@@ -262,11 +295,15 @@
 				throw operationResult;
 			}
 
+			steady_clock::time_point fineCreazioneProgrammi = steady_clock::now();
+			duration<double> tempoCreazioneProgrammi = duration_cast<duration<double>> (fineCreazioneProgrammi- inizioCreazioneProgrammi);
+			std::cout << "Tempo Creazione Programmi: " << tempoCreazioneProgrammi.count() << " seconds" <<  std::endl;
 
 
 			///////////////////////////////////////////////////////////////
 			/// Compilo i programmi
 			// TODO: capire come poter passare solo un  device  e non  la lista intera
+			steady_clock::time_point inizioCompilazioneProgrammi= steady_clock::now();
 			operationResult = fix_column_program.build(devices);
 			if (operationResult == CL_BUILD_PROGRAM_FAILURE) {
 				std::string err;
@@ -298,10 +335,16 @@
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR BUILDING PROGRAM pIVOT KERNEL" << std::endl;
 				throw operationResult;
+			
 			}
+
+			steady_clock::time_point fineCompilazioneProgrammi = steady_clock::now();
+			duration<double> tempoCompilazioneProgrammi = duration_cast<duration<double>> (fineCompilazioneProgrammi - inizioCompilazioneProgrammi);
+			std::cout << "Tempo Compilazione Programmi: " << tempoCompilazioneProgrammi.count() << " seconds" << std::endl;
 
 
 			// RECUPERO INFO SUI PROGRAMMI
+			// TODO: questo penso si possa rimuovere a fine development. Tanto i kernel non dovrebbero contenere errori
 			std::string nomi_kernel;
 			operationResult = fix_column_program.getInfo(CL_PROGRAM_KERNEL_NAMES, &nomi_kernel);
 			if (operationResult != CL_SUCCESS) {
@@ -322,9 +365,9 @@
 			}
 
 
-
 			///////////////////////////////////////////////////////////////
 			/// Creo i kernel
+			steady_clock::time_point inizioCreazioneKernel = steady_clock::now();
 			cl::Kernel fix_column_kernel(fix_column_program, "fixColumnKernel", &operationResult);
 
 			if (operationResult != CL_SUCCESS) {
@@ -344,6 +387,11 @@
 				throw operationResult;
 			}
 
+			steady_clock::time_point fineCreazioneKernel= steady_clock::now();
+			duration<double> tempoCreazioneKernel= duration_cast<duration<double>> (fineCreazioneKernel- inizioCreazioneKernel);
+			std::cout << "Tempo Creazione Kernel: " << tempoCreazioneKernel.count() << " seconds" << std::endl;
+
+
 			///////////////////////////////////////////////////////////////
 			/// Imposto argomenti kernel + esecuzione kernel 
 			///
@@ -351,6 +399,7 @@
 			/// Ad ogni ciclo imposto nuovi parametri al kernel e procedo con una nuova esecuzione
 			// Ci pensa openCL ad aspettare che un  kernel finisca prima di inizaire l'altro
 
+			steady_clock::time_point inizioSetArg = steady_clock::now();
 			// ROWS
 			operationResult = fix_row_kernel.setArg(0, augmented_matrix);
 			operationResult = fix_row_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
@@ -360,6 +409,11 @@
 			// PIVOT 
 			operationResult = pivot_kernel.setArg(0, augmented_matrix);
 			operationResult = pivot_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
+
+			steady_clock::time_point fineSetArg= steady_clock::now();
+			duration<double> tempoSetArg= duration_cast<duration<double>> (fineSetArg- inizioSetArg);
+			std::cout << "Tempo Set Arg: " << tempoSetArg.count() << " seconds" << std::endl;
+
 			tempoComputazioneInizio = steady_clock::now();
 			for (int i = 0; i < matrix_order; i++) { 
 				// PIVOT
@@ -409,8 +463,12 @@
 				throw operationResult;
 			}
 
+			steady_clock::time_point inizioRead= steady_clock::now();
 			// NB: la matrice augmentata � il doppio rispetto al numero di elementi iniziali
 			operationResult = commandQueue.enqueueReadBuffer(augmented_matrix, CL_TRUE, 0, matrice_augmentata.size() * sizeof(float), matrice_augmentata.data(), NULL);
+			steady_clock::time_point fineRead= steady_clock::now();
+			duration<double> tempoRead= duration_cast<duration<double>> (fineRead- inizioRead);
+			std::cout << "Tempo Read: " << tempoRead.count() << " seconds" << std::endl;
 
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR ENQUEUE READ BUFFER" << std::endl;
@@ -421,6 +479,7 @@
 			
 			// Recupero solo la matrice inversa da quella augmentata
 			std::vector<float> result = {};
+			steady_clock::time_point inizioResult= steady_clock::now();
 			int riga1 = 0;
 			for (int i = 0; i < matrice_augmentata.size(); i++) {
 				if ((i %(matrix_order * 2)) == 0) {
@@ -430,9 +489,12 @@
 					result.push_back(matrice_augmentata[i]);
 				}
 			}
-		
-			// stampo tempo impiegato
+			steady_clock::time_point fineResult= steady_clock::now();
+			duration<double> tempoResult= duration_cast<duration<double>> (fineResult- inizioResult);
+			std::cout << "Tempo Result: " << tempoResult.count() << " seconds" << std::endl;
 
+
+		
 			steady_clock::time_point tempoTotaleFine= steady_clock::now();
 			duration<double> tempoTotale = duration_cast<duration<double>> (tempoTotaleFine - tempoTotaleInizio);
 			std::cout << "Tempo Totale Impiegato: " << tempoTotale.count() << " seconds" <<  std::endl;
