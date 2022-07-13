@@ -140,9 +140,6 @@
 			// TODO CONTROLLARE  CHE LA MATRICE INSERITA SIA  QUADRATA !!
 			int matrix_order = sqrt(matrice_input.size());
 
-			// matrice identita con stessa dimensione della matrice passata come input
-			std::vector<float> matrice_indentita(matrice_input.size(), 0);
-
 			// matrice input a sinistra e matrice identita a destra (n x 2n)
 			// la dimensione di questa matrice � la dimensione globale
 			std::vector<float> matrice_augmentata = {};
@@ -153,36 +150,31 @@
 			steady_clock::time_point tempoTotaleInizio = steady_clock::now();
 			// Tempo impiegato dalla GPU per eseguire i kernel
 			steady_clock::time_point tempoComputazioneInizio;
+			// TEmpo impiegato dal fix row kernel. Usato per calcolare la bandwidth
+			steady_clock::time_point tempoFixRowInizio;
+			steady_clock::time_point tempoFixRowFine;
 
-
-			// creo matrice identita
-			int index = 0;
-			for (int i = 0; i < matrix_order; i++) {
-				matrice_indentita[index] = 1;
-				index += matrix_order + 1;
-			}
-
-			// creo matrice augmentata
-			int colonna = 0;
-			int indexIdentita = 0;
-			int indexInput = 0;
-			for (int i = 0; i < matrice_input.size() * 2; i++) {
-				// inserisco matrice identita
-				if (colonna >= matrix_order) {
-					matrice_augmentata.push_back(matrice_indentita[indexIdentita]);
-					indexIdentita++;
+				
+			// Creo matrice identità e la matrice Augmentata
+			int riga = 0; 
+			for (int i = 0; i < matrice_input.size()*2; i++) {
+				if (i == riga * matrix_order * 2) {
+					riga++;
 				}
-				// inserisco matrice input
-				else {
-					matrice_augmentata.push_back(matrice_input[indexInput]);
-					indexInput++;
+				// se sono nella metà di sinistra della matrice augmentata, inserisco la matrice input
+				if (i< (matrix_order*riga + (riga-1)*matrix_order)) {
+					matrice_augmentata.push_back(matrice_input[i - (riga-1) * (double)matrix_order]);
 				}
-				colonna++;
-				if (std::fmod(colonna, 2 * matrix_order) == 0) {
-					colonna = 0;
+				// se sono nella metà di destra, costruisco matrice identità
+				else{
+					if (i == (riga*matrix_order + (riga-1))) {
+						matrice_augmentata.push_back(1);
+					}
+					else {
+						matrice_augmentata.push_back(0);
+					}
 				}
 			}
-
 
 			// Recupero le piattaforme disponibili
 			operationResult = cl::Platform::get(&platforms);
@@ -382,7 +374,9 @@
 				// ROWS
 				operationResult = fix_row_kernel.setArg(2, i); // index riga da fixare
 				// come dimensione globale ho usato "2 * matrix_order, 1" perch� ogni kernel esegue l'operazione su tutti gli elementi di una sola riga 
+				tempoFixRowInizio = steady_clock::now();
 				operationResult = commandQueue.enqueueNDRangeKernel(fix_row_kernel, cl::NullRange, cl::NDRange( matrix_order, 1),  cl::NullRange, NULL, NULL);
+				tempoFixRowFine = steady_clock::now();
 				if (operationResult != CL_SUCCESS) {
 					std::cerr << "ERROR SETTING ARGUMENT FIX ROW KERNEL" << std::endl;
 					throw operationResult;
@@ -402,6 +396,14 @@
 			steady_clock::time_point tempoComputazioneFine = steady_clock::now();
 			duration<double> tempoComputazioneGPU = duration_cast<duration<double>> (tempoComputazioneFine - tempoComputazioneInizio);
 
+			
+			// BANDWIDTH
+			// Theoretical max: (1780MHz * (256/8)*2 bit)/1e9 =  113 GB/s
+			duration<double> tempoFixRow = duration_cast<duration<double>> (tempoFixRowFine - tempoFixRowInizio);
+			std::cout << "Bandwidth: " << ((matrix_order*2*4)/tempoFixRow.count())/1e9 << " GB/s" << std::endl;
+
+
+
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR ENQUEUE READ BUFFER" << std::endl;
 				throw operationResult;
@@ -419,12 +421,12 @@
 			
 			// Recupero solo la matrice inversa da quella augmentata
 			std::vector<float> result = {};
-			int riga = 0;
+			int riga1 = 0;
 			for (int i = 0; i < matrice_augmentata.size(); i++) {
 				if ((i %(matrix_order * 2)) == 0) {
-					riga++;
+					riga1++;
 				}
-				if (i>=((riga-1)*matrix_order*2 + matrix_order)) {
+				if (i>=((riga1-1)*matrix_order*2 + matrix_order)) {
 					result.push_back(matrice_augmentata[i]);
 				}
 			}

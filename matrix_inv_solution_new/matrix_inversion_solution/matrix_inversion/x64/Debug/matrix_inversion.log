@@ -1,4 +1,5 @@
 ﻿  matrix_inversion.cpp
 C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\matrix_inversion.cpp(141,21): warning C4244: 'inizializzazione': conversione da 'double' a 'int'. Possibile perdita di dati.
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\matrix_inversion.cpp(443,17): warning C4566: un carattere rappresentato dal nome di caratteri universali '\uFFFD' non può essere rappresentato nella tabella codici corrente (1252)
+C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\matrix_inversion.cpp(166,51): warning C4244: 'argomento': conversione da 'double' a 'const unsigned __int64'. Possibile perdita di dati.
+C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\matrix_inversion.cpp(445,17): warning C4566: un carattere rappresentato dal nome di caratteri universali '\uFFFD' non può essere rappresentato nella tabella codici corrente (1252)
   matrix_inversion.vcxproj -> C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\x64\Debug\matrix_inversion.exe
