@@ -89,6 +89,32 @@
 		}
 		})";
 
+		// Con matrixOrder si indende l'ordine della matrice iniziale, non la larghezza della matrice augmentata!!
+		// Finche sono a sinistra della matrice augmentata, leggo e scrivo dalla matrice input alla matrice augmentata
+		// Se sono a destra allora scrivo solamente il valore 1 o 0. 
+		// Metto dimensioni globali (2*matrixOrder, matrixOrder)
+		// TODO: RICORDO DI METTERE OFFSET DI 1 NELL NDENQUEUERANGEKERNEL!!!!
+		const std::string matrixKernelString= R"(__kernel void makeAugmentedMatrix(__global float *matrix, __global float *inputMatrix, int matrixOrder){
+		/* COL VA DA 0 A 2*MATRIX_ORDER */
+		int col = get_global_id(0);
+
+		/* ROW VA DA 1 A MATRIX_ORDER */
+		int row = get_global_id(1);
+
+		if(col < matrixOrder){
+			matrix[col + (row-1)*matrixOrder*2] = inputMatrix[col - (row-1)*matrixOrder];
+		}
+		else{
+			if((col - matrixOrder) == (row-1)){
+				matrix[col + (row-1)*matrixOrder*2] = 1;
+			}else{
+				matrix[col + (row-1)*matrixOrder*2] = 0;
+			}
+		}
+		})";
+
+
+
 
 		// se altezza vettore � zero ritorno vettore vuoto
 		if (matrix_order <= 0) {
@@ -142,7 +168,7 @@
 
 			// matrice input a sinistra e matrice identita a destra (n x 2n)
 			// la dimensione di questa matrice � la dimensione globale
-			std::vector<float> matrice_augmentata = {};
+			std::vector<float> matrice_augmentata = std::vector<float>(matrix_order*matrix_order*2, 0);
 
 				
 			using namespace std::chrono;
@@ -157,26 +183,6 @@
 			steady_clock::time_point inizioAugMat= steady_clock::now();
 
 			// Creo matrice identità e la matrice Augmentata
-			int riga = 0; 
-			for (int i = 0; i < matrice_input.size()*2; i++) {
-				if (i == riga * matrix_order * 2) {
-					riga++;
-				}
-				// se sono nella metà di sinistra della matrice augmentata, inserisco la matrice input
-				if (i< (matrix_order*riga + (riga-1)*matrix_order)) {
-					matrice_augmentata.push_back(matrice_input[i - (riga-1) * (double)matrix_order]);
-				}
-				// se sono nella metà di destra, costruisco matrice identità
-				else{
-					if (i == (riga*matrix_order + (riga-1))) {
-						matrice_augmentata.push_back(1);
-					}
-					else {
-						matrice_augmentata.push_back(0);
-					}
-				}
-			}
-
 			steady_clock::time_point fineAugMat= steady_clock::now();
 			duration<double> tempoAugMat= duration_cast<duration<double>> (fineAugMat- inizioAugMat);
 			std::cout << "Tempo Aug Mat: " << tempoAugMat.count() << " seconds" << std::endl;
@@ -260,15 +266,23 @@
 
 
 
-			// Creo buffers n x 2n
+			// Creo buffers n x 2n per matrice augmentata
 			steady_clock::time_point inizioCreazioneBuffer= steady_clock::now();
 			std::cout << matrice_augmentata.size() << std::endl;
 			cl::Buffer augmented_matrix(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, matrice_augmentata.size() * sizeof(float), matrice_augmentata.data(), &operationResult);
+			
+			// Creo buffer per matrice input
+			std::cout << matrice_input.size() << std::endl;
+			cl::Buffer input_matrix(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, matrice_input.size() * sizeof(float), matrice_input.data(), &operationResult);
+	
 			steady_clock::time_point fineCreazioneBuffer= steady_clock::now();
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR CREATING BUFFERS" << std::endl;
 				throw operationResult;
 			}
+
+
+
 
 			duration<double> tempoCreazioneBuffer = duration_cast<duration<double>> (fineCreazioneBuffer- inizioCreazioneBuffer);
 			std::cout << "Tempo Creazione Buffer: " << tempoCreazioneBuffer.count() << " seconds" <<  std::endl;
@@ -280,6 +294,12 @@
 			cl::Program fix_column_program(context, cl::Program::Sources(1, std::make_pair(fixColumnKernelString.c_str(), fixColumnKernelString.length() + 1)), &operationResult);
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR CREATING PROGRAM FIX COLUMNS" << std::endl;
+				throw operationResult;
+			}
+
+			cl::Program make_augmented_matrix_program(context, cl::Program::Sources(1, std::make_pair(matrixKernelString.c_str(), matrixKernelString.length() + 1)), &operationResult);
+			if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR CREATING PROGRAM MAKE AUGMENTED MATRIX" << std::endl;
 				throw operationResult;
 			}
 
@@ -314,6 +334,18 @@
 				std::cerr << "ERROR BUILDING PROGRAM FIX COLUMNS" << std::endl;
 				throw operationResult;
 			}
+
+			operationResult = make_augmented_matrix_program.build(devices);
+			if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR BUILDING PROGRAM MAKE AUGMENTED MATRIX" << std::endl;
+				throw operationResult;
+			}
+			if (operationResult == CL_BUILD_PROGRAM_FAILURE) {
+				std::string err;
+				fix_row_program.getBuildInfo(chosenDevice, CL_PROGRAM_BUILD_LOG, &err);
+				std::cout << err;
+			}
+
 
 			operationResult = fix_row_program.build(devices);
 			if (operationResult != CL_SUCCESS) {
@@ -352,6 +384,13 @@
 				throw operationResult;
 			}
 
+			operationResult = make_augmented_matrix_program.getInfo(CL_PROGRAM_KERNEL_NAMES, &nomi_kernel);
+			if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR GETTING PROGRAM INFO" << std::endl;
+				throw operationResult;
+			}
+
+
 			operationResult = fix_row_program.getInfo(CL_PROGRAM_KERNEL_NAMES, &nomi_kernel);
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR GETTING PROGRAM INFO" << std::endl;
@@ -369,9 +408,14 @@
 			/// Creo i kernel
 			steady_clock::time_point inizioCreazioneKernel = steady_clock::now();
 			cl::Kernel fix_column_kernel(fix_column_program, "fixColumnKernel", &operationResult);
-
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR CREATING FIX COLUMN KERNEL" << std::endl;
+				throw operationResult;
+			}
+
+			cl::Kernel make_augmented_matrix_kernel(make_augmented_matrix_program, "makeAugmentedMatrix", &operationResult);
+			if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR CREATING MAKE AUGMENTED MATRIX KERNEL" << std::endl;
 				throw operationResult;
 			}
 
@@ -400,6 +444,11 @@
 			// Ci pensa openCL ad aspettare che un  kernel finisca prima di inizaire l'altro
 
 			steady_clock::time_point inizioSetArg = steady_clock::now();
+			// MAKE AUGMENTED MATRIX
+			operationResult = make_augmented_matrix_kernel.setArg(0, augmented_matrix);
+			operationResult = make_augmented_matrix_kernel.setArg(1, input_matrix);
+			operationResult = make_augmented_matrix_kernel.setArg(2, matrix_order);
+
 			// ROWS
 			operationResult = fix_row_kernel.setArg(0, augmented_matrix);
 			operationResult = fix_row_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
