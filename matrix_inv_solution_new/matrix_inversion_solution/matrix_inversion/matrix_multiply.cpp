@@ -136,14 +136,14 @@ void matrix_multiply(std::vector<float> matriceB, std::vector<float> matriceA) {
 		for (int i = 0; i < vettoreC.size(); i++) {
 			// Controllo che elemento su diagonale sia uguale ad 1
 			if (i == (riga + riga*ordine)) {
-				if((vettoreC[i] - 1) > 1e5){
+				if((vettoreC[i] - 1) > (1/1e5)){
 					std::cout << "ERRORE, DIAGONALE DIVERSO DA 1" << std::endl;
 					std::cout << vettoreC[i] << "!=" << 1 << std::endl;
 					return;
 				}
 			}
 			else {
-				if(vettoreC[i] > 1e5){
+				if(vettoreC[i] > (1/1e5)){
 					std::cout << "ERRORE, NON DIAGONALE DIVERSO DA 0" << std::endl;
 					std::cout << vettoreC[i] << "!=" << 0 << std::endl;
 					return;
@@ -157,12 +157,12 @@ void matrix_multiply(std::vector<float> matriceB, std::vector<float> matriceA) {
 		std::cout << "OK" << std::endl;
 
 		// stampo risultato
-		/*for (int i = 0; i < vettoreC.size(); i++) {
+		for (int i = 0; i < vettoreC.size(); i++) {
 			if ( (i % ordine) == 0) {
 				std::cout <<std::endl;
 			}
 			std::cout << vettoreC[i] << "\t\t";
-		} */
+		} 
 
 		if (result != CL_SUCCESS) {
 			std::cerr << "ERROR ENQUEUE READ BUFFER" << std::endl;
