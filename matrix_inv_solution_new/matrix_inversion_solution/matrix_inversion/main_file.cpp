@@ -11,6 +11,30 @@ int main(){
 
 	for (int k = 0; k < REP; k++) {
 		std::vector<float> matriceIniziale = std::vector<float>(N*N);
+		// riempio matrice iniziale
+		for (int i = 0; i < matriceIniziale.size(); i++) {
+			matriceIniziale[i] = rand() % 10 + 1;
+		}
+
+		int ordine = sqrt(matriceIniziale.size());
+
+		// calcolo inversa
+		std::vector<float> matriceInversa =  matrix_inversion(matriceIniziale, ordine);
+
+		// controllo che inversa sia corretta 
+		matrix_multiply(matriceIniziale, matriceInversa);
+	}
+}
+
+
+
+/*
+	// Theoretical max is 16384
+	#define N 3 
+	#define REP 1
+
+	for (int k = 0; k < REP; k++) {
+		std::vector<float> matriceIniziale = std::vector<float>(N*N);
 		for (int i = 0; i < matriceIniziale.size(); i++) {
 			matriceIniziale[i] = rand() % 10 + 1;
 			std::cout << matriceIniziale[i] << " ";
@@ -34,4 +58,4 @@ int main(){
 		// controllo che inversa sia corretta 
 		matrix_multiply(matriceIniziale, matriceInversa);
 	}
-}
+*/

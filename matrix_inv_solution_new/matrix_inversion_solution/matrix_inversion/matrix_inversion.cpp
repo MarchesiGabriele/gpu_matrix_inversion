@@ -9,63 +9,66 @@
 
 	std::vector<float> matrix_inversion(std::vector<float> matrix_vector, int matrix_order) {
 		// KERNEL PER FIXARE COLONNE
-		const std::string fixColumnKernelString = R"(__kernel void fixColumnKernel(__global float *matrix, int size, int colId){
-	/* valori colonna matrice*/
-	int i = get_global_id(1);
-	/* valori riga matrice*/
-	int j = get_global_id(0);
-	/* colonna indicata da colId */ 
-	__local float col[100];	
-	/* elemento della riga corrispondente a colId */
-	__local float AColIdj;
-	/* riga indicata da i */
-	__local float colj[100];
-	col[i] = matrix[i*size+ colId];
-	/* controllo se elemento � diverso da zero, se lo � gi� non devo fare nulla*/
-	if(col[i] != 0){
-		colj[i] = matrix[i*size+j];
-		AColIdj = matrix[colId*size + j];
-		/* controllo  di non essere sulla diagonale */
-		if(i != colId){
-			colj[i] = colj[i] - AColIdj * col[i];
-		}
-		matrix[i*size + j] = colj[i];
-	}
-	})";
+		const std::string fixColumnKernelString = R"(
+		__kernel void fixColumnKernel(__global float *matrix, int size, int colId){
+			/* valori colonna matrice*/
+			int i = get_global_id(1);
+			/* valori riga matrice*/
+			int j = get_global_id(0);
+			/* colonna indicata da colId */ 
+			__local float col[100];	
+			/* elemento della riga corrispondente a colId */
+			__local float AColIdj;
+			/* riga indicata da i */
+			__local float colj[100];
+			col[i] = matrix[i*size+ colId];
+			/* controllo se elemento � diverso da zero, se lo � gi� non devo fare nulla*/
+			if(col[i] != 0){
+				colj[i] = matrix[i*size+j];
+				AColIdj = matrix[colId*size + j];
+				/* controllo  di non essere sulla diagonale */
+				if(i != colId){
+					colj[i] = colj[i] - AColIdj * col[i];
+				}
+				matrix[i*size + j] = colj[i];
+			}
+		})";
 
-		const std::string fixRowKernelString = R"(__kernel void fixRowKernel(__global float *matrix, int size, int rowId){
-	__local float row[100];
-	__local float Aii;
-	/* scorro gli elementi della riga */
-	int colId = get_global_id(0);
-	row[colId] = matrix[size*rowId + colId];
-	Aii = matrix[size*rowId + rowId];
-	row[colId] = row[colId]/Aii;
-	matrix[size*rowId + colId] = row[colId];
-	})";
+		const std::string fixRowKernelString = R"(
+		__kernel void fixRowKernel(__global float *matrix, int size, int rowId){
+			__local float row[100];
+			__local float Aii;
+			/* scorro gli elementi della riga */
+			int colId = get_global_id(0);
+			row[colId] = matrix[size*rowId + colId];
+			Aii = matrix[size*rowId + rowId];
+			row[colId] = row[colId]/Aii;
+			matrix[size*rowId + colId] = row[colId];
+		})";
 
 		// Eseguo pivoting per evitare che elementi della diagonale siano = 0. 
 		// Se trovo un elemento sulla diagonale = 0, prendo le altre righe e gliele sommo. 
-		const std::string pivotKernelString = R"(__kernel void pivotElementsKernel(__global float *matrix, int size, int rowId){
-	__local float selectedRow[100];
-	__local float Aii;
-	/* itero colonne per ciascuna riga*/
-	int col = get_global_id(0);
-	/* itero righe */
-	int row = get_global_id(1);
-	Aii = matrix[size*rowId + rowId];
-	if(Aii == 0){
-		/* riempio la riga corrispondente al mio rowId */
-		selectedRow[col] = matrix[size*rowId + col];
-		for(int i = 0; i<size; i++){
-			/* evito di sommare la stessa riga a se stessa */
-			if(rowId != row){
-				selectedRow[col] = selectedRow[col] + matrix[size*row + col];
+		const std::string pivotKernelString = R"(
+		__kernel void pivotElementsKernel(__global float *matrix, int size, int rowId){
+			__local float selectedRow[100];
+			__local float Aii;
+			/* itero colonne per ciascuna riga*/
+			int col = get_global_id(0);
+			/* itero righe */
+			int row = get_global_id(1);
+			Aii = matrix[size*rowId + rowId];
+			if(Aii == 0){
+				/* riempio la riga corrispondente al mio rowId */
+				selectedRow[col] = matrix[size*rowId + col];
+				for(int i = 0; i<size; i++){
+					/* evito di sommare la stessa riga a se stessa */
+					if(rowId != row){
+						selectedRow[col] = selectedRow[col] + matrix[size*row + col];
+					}
+				}
+				matrix[size*rowId + col] = selectedRow[col];
 			}
-		}
-		matrix[size*rowId + col] = selectedRow[col];
-	}
-	})";
+		})";
 
 		// Con matrixOrder si indende l'ordine della matrice iniziale, non la larghezza della matrice augmentata!!
 		// Finche sono a sinistra della matrice augmentata, leggo e scrivo dalla matrice input alla matrice augmentata
@@ -92,7 +95,7 @@
 			}
 		} 
 	
-		/* La matrice inversa la vado a mettere dentro il buffer della matrice di input */
+		/* La matrice inversa la vado a mettere dentro il buffer della matrice di input. Per evitare di creare un nuovo buffer*/
 		__kernel void getInvertedMatrix(__global float *matrix, __global float *inputMatrix, int matrixOrder){
 			/* COL VA DA 0 A 2*MATRIX_ORDER */
 			int col = get_global_id(0);
@@ -105,7 +108,6 @@
 			}
 		}
 		)";
-
 
 
 		// se altezza vettore � zero ritorno vettore vuoto
@@ -172,15 +174,6 @@
 			steady_clock::time_point tempoFixRowInizio;
 			steady_clock::time_point tempoFixRowFine;
 
-			steady_clock::time_point inizioAugMat= steady_clock::now();
-
-			// Creo matrice identità e la matrice Augmentata
-			steady_clock::time_point fineAugMat= steady_clock::now();
-			duration<double> tempoAugMat= duration_cast<duration<double>> (fineAugMat- inizioAugMat);
-			std::cout << "Tempo Aug Mat: " << tempoAugMat.count() << " seconds" << std::endl;
-
-
-
 			// Recupero le piattaforme disponibili
 			steady_clock::time_point inizioRecuperoPlat= steady_clock::now();
 			operationResult = cl::Platform::get(&platforms);
@@ -188,7 +181,6 @@
 				std::cerr << "ERROR GETTING PLATFORM" << std::endl;
 				throw operationResult;
 			}
-
 			std::cout << "Piattaforme disponibili: " << std::endl;
 			for (cl::Platform i : platforms) {
 				i.getInfo(CL_PLATFORM_NAME, &platformName);
@@ -199,8 +191,6 @@
 				std::cout << "VERSIONE: " << platformVersion << std::endl;
 				std::cout << std::endl;
 			}
-
-
 			steady_clock::time_point fineRecuperoPlat= steady_clock::now();
 			duration<double> tempoRecuperoPlat= duration_cast<duration<double>> (fineRecuperoPlat- inizioRecuperoPlat);
 			std::cout << "Tempo Recupero Plat: " << tempoRecuperoPlat.count() << " seconds" << std::endl;
@@ -209,14 +199,13 @@
 			// Scelgo piattaforma AMD 
 			chosenPlatform = platforms[0];
 
-			// Recupero i device disponibili
+			// Recupero i device disponibili e mostro INFO DEVICE
+			// https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clGetDeviceInfo.html
 			operationResult = chosenPlatform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR GETTING DEVICES" << std::endl;
 				throw operationResult;
 			}
-
-			// https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clGetDeviceInfo.html
 			std::cout << "Device disponibili: " << std::endl;
 			for (cl::Device i : devices) {
 				i.getInfo(CL_DEVICE_NAME, &deviceName);
@@ -243,19 +232,16 @@
 			// Creo il context per il device scelto
 			steady_clock::time_point inizioCtx= steady_clock::now();
 			context = cl::Context(chosenDevice);
-
 			steady_clock::time_point fineCtx= steady_clock::now();
 			duration<double> tempoCtx= duration_cast<duration<double>> (fineCtx- inizioCtx);
 			std::cout << "Tempo Context" << tempoCtx.count() << " seconds" << std::endl;
 
 			// Creo la command queue per il device scelto
 			steady_clock::time_point inizioCq= steady_clock::now();
-			commandQueue = cl::CommandQueue(context, chosenDevice);
-			
+			commandQueue = cl::CommandQueue(context, chosenDevice);			
 			steady_clock::time_point fineCq= steady_clock::now();
 			duration<double> tempoCq= duration_cast<duration<double>> (fineCq- inizioCq);
 			std::cout << "Tempo Comman Queue: " << tempoCq.count() << " seconds" << std::endl;
-
 
 
 			// Creo buffers n x 2n per matrice augmentata
@@ -272,25 +258,24 @@
 				std::cerr << "ERROR CREATING BUFFERS" << std::endl;
 				throw operationResult;
 			}
-
-
 			duration<double> tempoCreazioneBuffer = duration_cast<duration<double>> (fineCreazioneBuffer- inizioCreazioneBuffer);
 			std::cout << "Tempo Creazione Buffer: " << tempoCreazioneBuffer.count() << " seconds" <<  std::endl;
 
 
+
+			// Creo programmi usando i kernel
 			steady_clock::time_point inizioCreazioneProgrammi= steady_clock::now();
-			///////////////////////////////////////////////////////////////
-			/// Creo programma usando il kernel
 			cl::Program fix_column_program(context, cl::Program::Sources(1, std::make_pair(fixColumnKernelString.c_str(), fixColumnKernelString.length() + 1)), &operationResult);
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR CREATING PROGRAM FIX COLUMNS" << std::endl;
 				throw operationResult;
 			}
-
-			// NB: il probramma per questo kernel lo creo e compilo una sola volta, poi creo due kernel separati per le due singole funzioni
-			cl::Program make_augmented_matrix_program(context, cl::Program::Sources(1, std::make_pair(matrixKernelString.c_str(), matrixKernelString.length() + 1)), &operationResult);
+			
+			// Questo programma viene creato e compilato una sola volta, poi viene utilizzato per creare due kernel diversi. Quello per creare la matrice augmentata
+			// e quello per estrarre la matrice inversa dalla matrice augmentata.
+			cl::Program matrix_program(context, cl::Program::Sources(1, std::make_pair(matrixKernelString.c_str(), matrixKernelString.length() + 1)), &operationResult);
 			if (operationResult != CL_SUCCESS) {
-				std::cerr << "ERROR CREATING PROGRAM MAKE AUGMENTED MATRIX" << std::endl;
+				std::cerr << "ERROR CREATING MATRIX PROGRAM " << std::endl;
 				throw operationResult;
 			}
 
@@ -327,9 +312,9 @@
 				throw operationResult;
 			}
 
-			operationResult = make_augmented_matrix_program.build(devices);
+			operationResult = matrix_program.build(devices);
 			if (operationResult != CL_SUCCESS) {
-				std::cerr << "ERROR BUILDING PROGRAM MAKE AUGMENTED MATRIX" << std::endl;
+				std::cerr << "ERROR BUILDING MATRIXPROGRAM" << std::endl;
 				throw operationResult;
 			}
 			if (operationResult == CL_BUILD_PROGRAM_FAILURE) {
@@ -356,7 +341,7 @@
 				std::cout << err;
 			}
 			if (operationResult != CL_SUCCESS) {
-				std::cerr << "ERROR BUILDING PROGRAM pIVOT KERNEL" << std::endl;
+				std::cerr << "ERROR BUILDING PROGRAM PIVOT KERNEL" << std::endl;
 				throw operationResult;
 			
 			}
@@ -375,7 +360,7 @@
 				throw operationResult;
 			}
 
-			operationResult = make_augmented_matrix_program.getInfo(CL_PROGRAM_KERNEL_NAMES, &nomi_kernel);
+			operationResult = matrix_program.getInfo(CL_PROGRAM_KERNEL_NAMES, &nomi_kernel);
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR GETTING PROGRAM INFO" << std::endl;
 				throw operationResult;
@@ -404,13 +389,13 @@
 				throw operationResult;
 			}
 
-			cl::Kernel make_augmented_matrix_kernel(make_augmented_matrix_program, "makeAugmentedMatrix", &operationResult);
+			cl::Kernel make_augmented_matrix_kernel(matrix_program, "makeAugmentedMatrix", &operationResult);
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR CREATING MAKE AUGMENTED MATRIX KERNEL" << std::endl;
 				throw operationResult;
 			}
 
-			cl::Kernel get_inverted_matrix_kernel(make_augmented_matrix_program, "getInvertedMatrix", &operationResult);
+			cl::Kernel get_inverted_matrix_kernel(matrix_program, "getInvertedMatrix", &operationResult);
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR CREATING GET INVERTED MATRIX KERNEL" << std::endl;
 				throw operationResult;
@@ -433,15 +418,11 @@
 			std::cout << "Tempo Creazione Kernel: " << tempoCreazioneKernel.count() << " seconds" << std::endl;
 
 
-			///////////////////////////////////////////////////////////////
 			/// Imposto argomenti kernel + esecuzione kernel 
 			///
 			/// Con dei cicli itero attraverso le colonne/righe della matrice augmentata
 			/// Ad ogni ciclo imposto nuovi parametri al kernel e procedo con una nuova esecuzione
 			// Ci pensa openCL ad aspettare che un  kernel finisca prima di inizaire l'altro
-
-		
-			steady_clock::time_point inizioSetArg = steady_clock::now();
 			// MAKE AUGMENTED MATRIX
 			operationResult = make_augmented_matrix_kernel.setArg(0, augmented_matrix);
 			operationResult = make_augmented_matrix_kernel.setArg(1, input_matrix);
@@ -451,18 +432,6 @@
 					std::cerr << "ERROR MAKE AUGMENTED KERNEL EXECUTION" << std::endl;
 					throw operationResult;
 			}
-			std::vector<float> l = std::vector<float>(matrice_augmentata.size(), 0);
-			operationResult = commandQueue.enqueueReadBuffer(augmented_matrix, CL_TRUE, 0, matrice_augmentata.size() * sizeof(float), l.data(), NULL);
-			if (operationResult != CL_SUCCESS) {
-				std::cerr << "ERROR ENQUEUE READ BUFFER" << std::endl;
-				throw operationResult;
-			}
-			for (int i = 0; i < matrice_augmentata.size(); i++) {
-				std::cout << l[i] << " ";
-			}
-
-
-		
 		
 			// ROWS
 			operationResult = fix_row_kernel.setArg(0, augmented_matrix);
@@ -473,10 +442,6 @@
 			// PIVOT 
 			operationResult = pivot_kernel.setArg(0, augmented_matrix);
 			operationResult = pivot_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
-
-			steady_clock::time_point fineSetArg= steady_clock::now();
-			duration<double> tempoSetArg= duration_cast<duration<double>> (fineSetArg- inizioSetArg);
-			std::cout << "Tempo Set Arg: " << tempoSetArg.count() << " seconds" << std::endl;
 
 			tempoComputazioneInizio = steady_clock::now();
 			for (int i = 0; i < matrix_order; i++) { 
@@ -510,18 +475,11 @@
 					throw operationResult;
 				}
 			}
-			
-			// leggo matrice
-			operationResult = commandQueue.enqueueReadBuffer(augmented_matrix, CL_TRUE, 0, matrice_augmentata.size() * sizeof(float), l.data(), NULL);
-			if (operationResult != CL_SUCCESS) {
-				std::cerr << "ERROR ENQUEUE READ BUFFER" << std::endl;
-				throw operationResult;
-			}
-			for (int i = 0; i < matrice_augmentata.size(); i++) {
-				std::cout << l[i] << " ";
-			}
 
-
+			operationResult = commandQueue.finish();
+			steady_clock::time_point tempoComputazioneFine = steady_clock::now();
+			duration<double> tempoComputazioneGPU = duration_cast<duration<double>> (tempoComputazioneFine - tempoComputazioneInizio);
+		
 			// GET INVERTED MATRIX 
 			operationResult = get_inverted_matrix_kernel.setArg(0, augmented_matrix);
 			operationResult = get_inverted_matrix_kernel.setArg(1, input_matrix);
@@ -532,25 +490,9 @@
 					throw operationResult;
 			}
 
-			std::cout << std::endl;
-
-			std::vector<float> s = std::vector<float>(matrice_input.size(), 0);
-			operationResult = commandQueue.enqueueReadBuffer(input_matrix, CL_TRUE, 0, matrice_input.size() * sizeof(float), s.data(), NULL);
-			if (operationResult != CL_SUCCESS) {
-				std::cerr << "ERROR ENQUEUE READ BUFFER" << std::endl;
-				throw operationResult;
-			}
-			for (int i = 0; i < matrice_input.size(); i++) {
-				std::cout << s[i] << " ";
-			}
-
-
-
 			operationResult = commandQueue.finish();
-			steady_clock::time_point tempoComputazioneFine = steady_clock::now();
-			duration<double> tempoComputazioneGPU = duration_cast<duration<double>> (tempoComputazioneFine - tempoComputazioneInizio);
 
-			
+
 			// BANDWIDTH
 			// Theoretical max: (1780MHz * (256/8)*2 bit)/1e9 =  113 GB/s
 			duration<double> tempoFixRow = duration_cast<duration<double>> (tempoFixRowFine - tempoFixRowInizio);
@@ -564,7 +506,6 @@
 			steady_clock::time_point fineRead = steady_clock::now();
 			duration<double> tempoRead = duration_cast<duration<double>> (fineRead - inizioRead);
 			std::cout << "Tempo Read: " << tempoRead.count() << " seconds" << std::endl;
-
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR ENQUEUE READ BUFFER" << std::endl;
 				throw operationResult;
@@ -580,7 +521,7 @@
 			return matriceResult;
 		}
 		catch (cl_int e) {
-			std::cerr << "ERRORE N�: " << e << std::endl;
+			std::cerr << "ERRORE N°: " << e << std::endl;
 		}
 		return {};
 	}
