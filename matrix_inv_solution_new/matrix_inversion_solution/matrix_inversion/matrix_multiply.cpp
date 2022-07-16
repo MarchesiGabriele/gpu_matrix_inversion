@@ -22,7 +22,7 @@ void matrix_multiply(std::vector<float> matriceB, std::vector<float> matriceA) {
 			int row = get_global_id(1);
 			int col = get_global_id(0);
 
-			float sum = 0.0f;
+			float sum = 0;
 
 			for (int i = 0; i < ordine; i++) {
 				sum += inputA[row * ordine+ i] * inputB[i * ordine+ col];
@@ -136,14 +136,14 @@ void matrix_multiply(std::vector<float> matriceB, std::vector<float> matriceA) {
 		for (int i = 0; i < vettoreC.size(); i++) {
 			// Controllo che elemento su diagonale sia uguale ad 1
 			if (i == (riga + riga*ordine)) {
-				if((vettoreC[i] - 1) > (1/1e5)){
+				if((vettoreC[i] - 1) > (1/1e3)){
 					std::cout << "ERRORE, DIAGONALE DIVERSO DA 1" << std::endl;
 					std::cout << vettoreC[i] << "!=" << 1 << std::endl;
 					return;
 				}
 			}
 			else {
-				if(vettoreC[i] > (1/1e6)){
+				if(vettoreC[i] > (1/1e3)){
 					std::cout << "ERRORE, NON DIAGONALE DIVERSO DA 0" << std::endl;
 					std::cout << vettoreC[i] << "!=" << 0 << std::endl;
 					return;
@@ -155,22 +155,21 @@ void matrix_multiply(std::vector<float> matriceB, std::vector<float> matriceA) {
 		}
 
 		std::cout << "OK" << std::endl;
-
+	/*
 		// stampo risultato
-		/*for (int i = 0; i < vettoreC.size(); i++) {
+		for (int i = 0; i < vettoreC.size(); i++) {
 			if ( (i % ordine) == 0) {
 				std::cout <<std::endl;
 			}
 			std::cout << vettoreC[i] << "\t\t";
 		} 
+
 		*/
 
 		if (result != CL_SUCCESS) {
 			std::cerr << "ERROR ENQUEUE READ BUFFER" << std::endl;
 			throw result;
 		}
-
-
 
 	}
 	catch (cl_int e) {

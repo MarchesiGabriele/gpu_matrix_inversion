@@ -1,4 +1,8 @@
-﻿  matrix_multiply.cpp
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\matrix_multiply.cpp(43,52): warning C4244: 'argomento': conversione da 'double' a 'const unsigned __int64'. Possibile perdita di dati.
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\matrix_multiply.cpp(134,14): warning C4244: 'inizializzazione': conversione da 'double' a 'int'. Possibile perdita di dati.
+﻿  main_file.cpp
+C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\main_file.cpp(16,39): warning C4244: '=': conversione da 'int' a '_Ty'. Possibile perdita di dati.
+          with
+          [
+              _Ty=float
+          ]
+C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\main_file.cpp(21,14): warning C4244: 'inizializzazione': conversione da 'double' a 'int'. Possibile perdita di dati.
   matrix_inversion.vcxproj -> C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\x64\Debug\matrix_inversion.exe
