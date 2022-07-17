@@ -5,29 +5,31 @@
 #include <fstream>
 #include <chrono>
 #define __CL_ENABLE_EXCEPTIONS
-
+#define pivots false 
 
 	std::vector<float> matrix_inversion(std::vector<float> matrix_vector, int matrix_order) {
-		// KERNEL PER FIXARE COLONNEi
+		// KERNEL PER FIXARE COLONNE
 		// NB: size deve essere pari alla larghezza della matrice augmentata
 		const std::string fixColumnKernelString = R"(
 		__kernel void fixColumnKernel(__global float *matrix, int size, int colIdx){
 
 			int j = get_global_id(0);
 			int i = get_global_id(1);
+
 			__local float colId[1024];	
 			__local float rowId[1024];
 			__local float row[1024];
-			__local float Aij;
+			__local float AiIdx;
 
 			colId[i] = matrix[i*size + colIdx];
+			rowId[j] = matrix[colIdx*size + j];
 
 			if(colId[i] != 0 && i != colIdx){
-				rowId[j] = matrix[colIdx*size + j];
+				/* Row sto attualmente aggiustando */
 				row[j] = matrix[i*size + j];
 
-				Aij = matrix[i*size + colIdx];
-				row[j] = row[j] - (Aij * rowId[j]); 
+				AiIdx = matrix[i*size + colIdx];
+				row[j] = row[j] - (AiIdx * rowId[j]); 
 				matrix[i*size + j] = row[j];
 			}
 		})";
@@ -439,7 +441,7 @@
 
 			std::vector<float> m = std::vector<float>(matrice_augmentata.size(), 0);
 			operationResult = commandQueue.enqueueReadBuffer(augmented_matrix, CL_TRUE, 0, matrice_augmentata.size() * sizeof(float), m.data(), NULL);
-/*
+
 			std::cout << "AUG1: " << std::endl;
 			for (int i = 0; i < m.size(); i++) {
 				if (i != 0 && (i % (matrix_order*2)) == 0) {
@@ -448,9 +450,8 @@
 
 				std::cout << m[i] << "\t";
 			}
-	*/		
 			std::cout << std::endl;
-		
+
 			// ROWS
 			operationResult = fix_row_kernel.setArg(0, augmented_matrix);
 			operationResult = fix_row_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
@@ -462,40 +463,79 @@
 			operationResult = pivot_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
 
 			tempoComputazioneInizio = steady_clock::now();
-			for (int i = 0; i < matrix_order; i++) { 
-				// PIVOT
-				operationResult = pivot_kernel.setArg(2, i); // index riga su cui fare il pivot 
-				// come dimensione globale ho usato "2 * matrix_order, matrix_order" perch� se serve fare almeno un pivot, vengono toccati tutti gli elementi della matrice augmentata 
-				operationResult = commandQueue.enqueueNDRangeKernel(pivot_kernel, cl::NDRange(i,0), cl::NDRange(matrix_order+1, matrix_order), cl::NullRange, NULL, NULL);
-				if (operationResult != CL_SUCCESS) {
-					std::cerr << "ERROR SETTING ARGUMENT PIVOT KERNEL" << std::endl;
-					throw operationResult;
-				}
 
-				// ROWS
-				operationResult = fix_row_kernel.setArg(2, i); // index riga da fixare
-				// come dimensione globale ho usato "2 * matrix_order, 1" perch� ogni kernel esegue l'operazione su tutti gli elementi di una sola riga 
-				tempoFixRowInizio = steady_clock::now();
-				operationResult = commandQueue.enqueueNDRangeKernel(fix_row_kernel, cl::NDRange(i,0), cl::NDRange(matrix_order+1, 1), cl::NullRange, NULL, NULL);
-				tempoFixRowFine = steady_clock::now();
-				if (operationResult != CL_SUCCESS) {
-					std::cerr << "ERROR SETTING ARGUMENT FIX ROW KERNEL" << std::endl;
-					throw operationResult;
-				}
+			if (pivots) {
+				for (int i = 0; i < matrix_order; i++) { 
+					// PIVOT
+					operationResult = pivot_kernel.setArg(2, i); // index riga su cui fare il pivot 
+					// come dimensione globale ho usato "2 * matrix_order, matrix_order" perch� se serve fare almeno un pivot, vengono toccati tutti gli elementi della matrice augmentata 
+					operationResult = commandQueue.enqueueNDRangeKernel(pivot_kernel, cl::NDRange(i,0), cl::NDRange(matrix_order+1, matrix_order), cl::NullRange, NULL, NULL);
+					if (operationResult != CL_SUCCESS) {
+						std::cerr << "ERROR SETTING ARGUMENT PIVOT KERNEL" << std::endl;
+						throw operationResult;
+					}
 
-				// COLUMNS
-				operationResult = fix_column_kernel.setArg(2, i); // index colonna da fixare
-				// come dimensione globale ho usato "2 * matrix_order, matrix_order" perch� ogni kernel esegue l'operazione su tutta la matrice augmentata
-				// ogni kernel considera una colonna da sistemare, ma per ogni elemento della colonna devo fixare l'intera riga quindi eseguo operazioni su tutti gli elementi della matrice augmentata
-				operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NDRange(i,0), cl::NDRange(matrix_order+1, matrix_order), cl::NullRange, NULL, NULL);
-				if (operationResult != CL_SUCCESS) {
-					std::cerr << "ERROR ROW KERNEL EXECUTION" << std::endl;
-					throw operationResult;
+					// ROWS
+					operationResult = fix_row_kernel.setArg(2, i); // index riga da fixare
+					// come dimensione globale ho usato "2 * matrix_order, 1" perch� ogni kernel esegue l'operazione su tutti gli elementi di una sola riga 
+					tempoFixRowInizio = steady_clock::now();
+					operationResult = commandQueue.enqueueNDRangeKernel(fix_row_kernel, cl::NDRange(i,0), cl::NDRange(matrix_order+1, 1), cl::NullRange, NULL, NULL);
+					tempoFixRowFine = steady_clock::now();
+					if (operationResult != CL_SUCCESS) {
+						std::cerr << "ERROR SETTING ARGUMENT FIX ROW KERNEL" << std::endl;
+						throw operationResult;
+					}
+
+					// COLUMNS
+					operationResult = fix_column_kernel.setArg(2, i); // index colonna da fixare
+					// come dimensione globale ho usato "2 * matrix_order, matrix_order" perch� ogni kernel esegue l'operazione su tutta la matrice augmentata
+					// ogni kernel considera una colonna da sistemare, ma per ogni elemento della colonna devo fixare l'intera riga quindi eseguo operazioni su tutti gli elementi della matrice augmentata
+					operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NDRange(i,0), cl::NDRange(matrix_order+1, matrix_order), cl::NullRange, NULL, NULL);
+					if (operationResult != CL_SUCCESS) {
+						std::cerr << "ERROR ROW KERNEL EXECUTION" << std::endl;
+						throw operationResult;
+					}
 				}
 			}
-			// TODO: TENERE QUESTO READ BUFFER PERCHé SERVER PER IL CONTROLLO DELLA MATRICE IDENTITA
+			else {
+				for (int i = 0; i < matrix_order; i++) { 
+					// PIVOT
+					operationResult = pivot_kernel.setArg(2, i); // index riga su cui fare il pivot 
+					// come dimensione globale ho usato "2 * matrix_order, matrix_order" perch� se serve fare almeno un pivot, vengono toccati tutti gli elementi della matrice augmentata 
+					operationResult = commandQueue.enqueueNDRangeKernel(pivot_kernel, cl::NullRange, cl::NDRange(matrix_order*2, matrix_order), cl::NullRange, NULL, NULL);
+					if (operationResult != CL_SUCCESS) {
+						std::cerr << "ERROR SETTING ARGUMENT PIVOT KERNEL" << std::endl;
+						throw operationResult;
+					}
+
+					// ROWS
+					operationResult = fix_row_kernel.setArg(2, i); // index riga da fixare
+					// come dimensione globale ho usato "2 * matrix_order, 1" perch� ogni kernel esegue l'operazione su tutti gli elementi di una sola riga 
+					tempoFixRowInizio = steady_clock::now();
+					operationResult = commandQueue.enqueueNDRangeKernel(fix_row_kernel, cl::NullRange, cl::NDRange(matrix_order*2, 1), cl::NullRange, NULL, NULL);
+					tempoFixRowFine = steady_clock::now();
+					if (operationResult != CL_SUCCESS) {
+						std::cerr << "ERROR SETTING ARGUMENT FIX ROW KERNEL" << std::endl;
+						throw operationResult;
+					}
+
+					// COLUMNS
+					operationResult = fix_column_kernel.setArg(2, i); // index colonna da fixare
+					// come dimensione globale ho usato "2 * matrix_order, matrix_order" perch� ogni kernel esegue l'operazione su tutta la matrice augmentata
+					// ogni kernel considera una colonna da sistemare, ma per ogni elemento della colonna devo fixare l'intera riga quindi eseguo operazioni su tutti gli elementi della matrice augmentata
+					operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange(matrix_order*2, matrix_order), cl::NullRange, NULL, NULL);
+					if (operationResult != CL_SUCCESS) {
+						std::cerr << "ERROR ROW KERNEL EXECUTION" << std::endl;
+						throw operationResult;
+					}
+				}
+			}
+
+
+
+					// TODO: TENERE QUESTO READ BUFFER PERCHé SERVER PER IL CONTROLLO DELLA MATRICE IDENTITA
 			operationResult = commandQueue.enqueueReadBuffer(augmented_matrix, CL_TRUE, 0, matrice_augmentata.size() * sizeof(float), m.data(), NULL);
-/*
+
 			std::cout << "\n AUG: " << std::endl;
 			for (int i = 0; i < m.size(); i++) {
 				if (i != 0 && (i % (matrix_order*2)) == 0) {
@@ -504,7 +544,8 @@
 
 				std::cout << m[i] << "  ";
 			}
-	*/		
+
+			std::cout << std::endl;
 
 			operationResult = commandQueue.finish();
 			steady_clock::time_point tempoComputazioneFine = steady_clock::now();
