@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 
-void matrix_multiply(std::vector<float> matriceA, std::vector<float> matriceB);
+void matrix_multiply(std::vector<double> matriceA, std::vector<double> matriceB);
 
-std::vector<float> matrix_inversion(std::vector<float> matrix_vector, int matrix_order);
+std::vector<double> matrix_inversion(std::vector<double> matrix_vector, int matrix_order);
 
