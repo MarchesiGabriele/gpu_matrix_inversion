@@ -130,9 +130,48 @@ void matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA)
 
 		// leggo i risultati dell'operazione e li sposto in memoria host
 		result = commandQueue.enqueueReadBuffer(bufferC, CL_TRUE, 0, vettoreC.size() * sizeof(cl_double), vettoreC.data(), NULL);
+		
+			
+		result = commandQueue.finish();
+		if (result != CL_SUCCESS) {
+			std::cerr << "ERROR SETTING ARGUMENTS" << std::endl;
+			throw result;
+		}
 
+
+
+		int tot = 0;
+		for (int i = 0; i < vettoreC.size(); i++) {
+			if ((int)vettoreC[i] >0) {
+				tot++;
+			}
+		}
+
+		std::cout << "\n\n TOT: " << tot << std::endl;
+		
+		for (int i = 0; i < vettoreC.size(); i++) {
+			if ((int)vettoreC[i] >0) {
+				std::cout << "POSIZIONE: " << i << " , VALORE: " << vettoreC[i] << std::endl;
+			}
+		}
+
+
+		// NORMA DI FROBENIUS
+		double ordine = sqrt(vettoreC.size());
+		double somma = 0.0;
+		for (int i = 0; i < vettoreC.size(); i++) {
+			somma += vettoreC[i] * vettoreC[i];
+		} 
+
+		std::cout << "\n\nNORMA DI FROBENIUS: " << sqrt(somma) << std::endl;
+		std::cout << "\n\nRADICE ORDINE MATRICE: " << sqrt(ordine) << std::endl;
+		std::cout << std::setprecision(60) << "\n\nERRORE: " << sqrt(ordine) - sqrt(somma) << std::endl;
+		std::cout << std::endl;
+
+
+
+/*
 		// Controllo che matrice finale sia matrice identità
-		int ordine = sqrt(matriceA.size());
 		int riga = 0; 
 		for (int i = 0; i < vettoreC.size(); i++) {
 			// Controllo che elemento su diagonale sia uguale ad 1
@@ -150,20 +189,24 @@ void matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA)
 					return;
 				}
 			}
-			if (i != 0 && (i % ordine) == 0) {
+			if (i != 0 && (i % (int)ordine) == 0) {
 				riga++;
 			}
 		}
-
+*/
 		std::cout << "OK" << std::endl;
-
+/*
 		// stampo risultato
 		for (int i = 0; i < vettoreC.size(); i++) {
 			if ( (i % ordine) == 0) {
-				std::cout <<std::endl;
+				std::cout << std::setprecision(60) <<std::endl;
 			}
 			std::cout << vettoreC[i] << "\t\t";
 		} 
+
+
+*/
+
 
 
 		if (result != CL_SUCCESS) {

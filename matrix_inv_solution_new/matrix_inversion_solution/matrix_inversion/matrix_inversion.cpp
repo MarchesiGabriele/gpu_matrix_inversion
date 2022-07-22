@@ -19,9 +19,9 @@
 			int i = get_global_id(1);
 
 			/* NB: la dimensione di questi array non rappresenta la lunghezza max. Se la supero vado però a finire dentro la global memory. */
-			__local double colId[1024];	
-			__local double rowId[1024];
-			__local double row[1024];
+			__local double colId[4096];	
+			__local double row[4096];
+			__local double rowId[4096];
 			__local double AiIdx;
 
 			colId[i] = matrix[i*size + colIdx];
@@ -40,7 +40,7 @@
 		const std::string fixRowKernelString = R"(
 		#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 		__kernel void fixRowKernel(__global double *matrix, int size, int rowId){
-			__local double row[1024];
+			__local double row[4096];
 			__local double Aii;
 
 			/* scorro gli elementi della riga */
@@ -55,32 +55,18 @@
 		// Eseguo pivoting per evitare che elementi della diagonale siano = 0. 
 		// Se trovo un elemento sulla diagonale = 0, prendo le altre righe e gliele sommo. 
 		// Size corrisponde alla larghezza della matrice augmentata
+		// Max row è l'id della riga che deve eseguire lo swap con rowId
 		const std::string pivotKernelString = R"(
 		#pragma OPENCL EXTENSION cl_khr_fp64 : enable
-		__kernel void pivotElementsKernel(__global double *matrix, int size, int rowId){
-			__local double selectedRow[1024];
-			__local double Aii;
+		__kernel void pivotElementsKernel(__global double *matrix, int size, int rowId, int maxRow){
 
 			int j = get_global_id(0);
 
-			int i = get_global_id(1);
-
-			Aii = matrix[size*rowId + rowId];
-
-			if(Aii == 0){
-				/* riempio la riga corrispondente al mio rowId */
-				selectedRow[j] = matrix[size*rowId + j];
-
-				for(int k = 0; k<(size/2); k++){
-					/* evito di sommare la stessa riga a se stessa, e che la riga sommata sia sotto la riga corrente.*/
-					/* Altrimenti si generano problemi con le colonne in cui ho già eseguito fix Column.*/
-					if(k > rowId && matrix[size*k + rowId] != 0){
-						selectedRow[j] = selectedRow[j] + matrix[size*k + j];
-						matrix[size*rowId + j] = selectedRow[j];
-						break;
-					}
-				}
-			}
+			double old = 0.0;
+			old = matrix[size*rowId + j];
+		
+			matrix[size*rowId + j] = matrix[size*maxRow + j];
+			matrix[size*maxRow + j] = old;
 		})";
 
 		// Con matrixOrder si indende l'ordine della matrice iniziale, non la larghezza della matrice augmentata!!
@@ -122,7 +108,7 @@
 		)";
 
 		
-		std::cout << std::setprecision(51);
+		//std::cout << std::setprecision(5);
 
 		// se altezza vettore � zero ritorno vettore vuoto
 		if (matrix_order <= 0) {
@@ -421,10 +407,10 @@
 					std::cerr << "ERROR MAKE AUGMENTED KERNEL EXECUTION" << std::endl;
 					throw operationResult;
 			}
-
 			std::vector<cl_double> m = std::vector<cl_double>(matrice_augmentata.size(), 0);
-			operationResult = commandQueue.enqueueReadBuffer(augmented_matrix, CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), m.data(), NULL);
 
+/*
+			operationResult = commandQueue.enqueueReadBuffer(augmented_matrix, CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), m.data(), NULL);
 			std::cout << "AUG1: " << std::endl;
 			for (int i = 0; i < m.size(); i++) {
 				if (i != 0 && (i % (matrix_order*2)) == 0) {
@@ -434,6 +420,7 @@
 				std::cout << m[i] << "\t";
 			}
 			std::cout << std::endl;
+*/
 			// ROWS
 			operationResult = fix_row_kernel.setArg(0, augmented_matrix);
 			operationResult = fix_row_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
@@ -472,7 +459,7 @@
 					operationResult = fix_column_kernel.setArg(2, i); // index colonna da fixare
 					// come dimensione globale ho usato "2 * matrix_order, matrix_order" perch� ogni kernel esegue l'operazione su tutta la matrice augmentata
 					// ogni kernel considera una colonna da sistemare, ma per ogni elemento della colonna devo fixare l'intera riga quindi eseguo operazioni su tutti gli elementi della matrice augmentata
-					operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NDRange(i,0), cl::NDRange((cl_int)(matrix_order+1), matrix_order), cl::NullRange, NULL, NULL);
+					operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NDRange(i,0), cl::NDRange((cl_int)(matrix_order+1), matrix_order), cl::NDRange(256,1), NULL, NULL);
 					if (operationResult != CL_SUCCESS) {
 						std::cerr << "ERROR ROW KERNEL EXECUTION" << std::endl;
 						throw operationResult;
@@ -481,10 +468,26 @@
 			}
 			else {
 				for (int i = 0; i < matrix_order; i++) { 
+					// Prendo il numero di riga che contiene il valore più grande sulla colonna i, da rendere pivot per la riga i. 
+					// Il numero di riga deve essere maggiore di i. 
+
+					operationResult = commandQueue.enqueueReadBuffer(augmented_matrix, CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
+					cl_int rigaMax= i;
+					for (int k = i; k < matrix_order; k++) {
+						if (abs(matrice_augmentata[k * matrix_order * 2 +i]) >= abs(matrice_augmentata[rigaMax * matrix_order * 2 + i])) {
+							rigaMax = k;
+						}
+					}
+					//std::cout << "RIGA MAX: " << rigaMax << std::endl;
+					//std::cout << "VALORE RIGA MAX: " << matrice_augmentata[rigaMax*matrix_order*2 + i] << std::endl;
+					// TODO: IN CASO IL VALORE PIVOT DELLA RIGA MAX SIA 0, SIGNIFICA CHE LA MATRICE NON E' INVERTIBILE!!!
+
+
+
 					// PIVOT
 					operationResult = pivot_kernel.setArg(2, i); // index riga su cui fare il pivot 
-					// come dimensione globale ho usato "2 * matrix_order, matrix_order" perch� se serve fare almeno un pivot, vengono toccati tutti gli elementi della matrice augmentata 
-					operationResult = commandQueue.enqueueNDRangeKernel(pivot_kernel, cl::NullRange, cl::NDRange((cl_int)(matrix_order*2), matrix_order), cl::NullRange, NULL, NULL);
+					operationResult = pivot_kernel.setArg(3, rigaMax); 
+					operationResult = commandQueue.enqueueNDRangeKernel(pivot_kernel, cl::NullRange, cl::NDRange((cl_int)(matrix_order*2)), cl::NullRange, NULL, NULL);
 					if (operationResult != CL_SUCCESS) {
 						std::cerr << "ERROR SETTING ARGUMENT PIVOT KERNEL" << std::endl;
 						throw operationResult;
@@ -517,7 +520,7 @@
 
 			// TODO: TENERE QUESTO READ BUFFER PERCHé SERVER PER IL CONTROLLO DELLA MATRICE IDENTITA
 			operationResult = commandQueue.enqueueReadBuffer(augmented_matrix, CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), m.data(), NULL);
-
+			/*
 			std::cout << "\n AUG: " << std::endl;
 			for (int i = 0; i < m.size(); i++) {
 				if (i != 0 && (i % (matrix_order*2)) == 0) {
@@ -526,8 +529,9 @@
 
 				std::cout << m[i] << "  ";
 			}
-			std::cout << std::endl;
 
+*/
+			std::cout << std::endl;
 			operationResult = commandQueue.finish();
 			steady_clock::time_point tempoComputazioneFine = steady_clock::now();
 			duration<float> tempoComputazioneGPU = duration_cast<duration<float>> (tempoComputazioneFine - tempoComputazioneInizio);
@@ -575,13 +579,13 @@
 			for (int i = 0; i < m.size(); i++) {
 				if ((row*matrix_order*2 + row) == i) {
 					if (m[i] != 1) {
-						std::cout << "DIAGONALE DIVERSA DA 1 " << m[i] << " != 1";
+						std::cout << "DIAGONALE DIVERSA DA 1: \t\t" << m[i] << " != 1";
 						return {};
 					}
 				}
 				else if (i < (row*matrix_order*2 + matrix_order)){
 					if (m[i] != 0) {
-						std::cout << "NON DIAGONALE DIVERSA DA 0 " << m[i] << " != 0";
+						std::cout << "NON DIAGONALE DIVERSA DA 0: \t\t " << m[i] << " != 0";
 						return {};
 					}
 				}

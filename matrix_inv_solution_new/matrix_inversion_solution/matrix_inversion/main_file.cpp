@@ -3,11 +3,9 @@
 #include <iostream>
 #include <iomanip>
 
-
-
 int main(){
 	// Theoretical max is 16384
-	#define N 3 
+	#define N 1024 
 	#define REP 1
 
 	for (int k = 0; k < REP; k++) {
@@ -15,26 +13,29 @@ int main(){
 		std::vector<double> matriceInversa = std::vector<double>(N*N);
 		std::cout << "INIZIALE: " << std::endl;
 		for (int i = 0; i < matriceIniziale.size(); i++) {
-			matriceIniziale[i] = (double)(rand() % 1000) + 1;
+			//matriceIniziale[i] = (double)(1 / (double)(rand() % 10 +1));
+			matriceIniziale[i] = ((double)(rand() % 1000 +1));
 			//std::cout << matriceIniziale[i] << " ";
 		}
 		//matriceIniziale = {2,1,5,4,2,7,8,9,3};
-		matriceIniziale = {2,8,5,1,10,5,9,9,3};
+		//matriceIniziale = {2,8,5,1,10,5,9,9,3};
+		//matriceIniziale = {1,1,1,1,1,1,1,1,1};
+		//matriceIniziale = {1,0,0,0,0,0,0,0,1};
 
 		int ordine = sqrt(matriceIniziale.size());
 
 		// calcolo inversa
 		matriceInversa = matrix_inversion(matriceIniziale, ordine);
 
-		std::cout << std::setprecision(60) << "INVERSA: " << std::endl;
-
+		std::cout << std::setprecision(5) << "INVERSA: " << std::endl;
+/*
 		for (int i = 0; i <matriceInversa.size(); i++) {
 			if (i != 0 && (i % N) == 0) {
 				std::cout << std::endl;
 			}
 			std::cout << matriceInversa[i] << "\t\t";
 		}
-
+*/
 		std::cout  << std::endl;
 		std::cout << std::endl;
 
