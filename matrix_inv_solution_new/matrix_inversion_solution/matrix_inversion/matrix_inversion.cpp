@@ -52,8 +52,6 @@
 			matrix[size*rowId + colId] = row[colId];
 		})";
 
-		// Eseguo pivoting per evitare che elementi della diagonale siano = 0. 
-		// Se trovo un elemento sulla diagonale = 0, prendo le altre righe e gliele sommo. 
 		// Size corrisponde alla larghezza della matrice augmentata
 		// Max row è l'id della riga che deve eseguire lo swap con rowId
 		const std::string pivotKernelString = R"(
@@ -482,6 +480,7 @@
 					//std::cout << "VALORE RIGA MAX: " << matrice_augmentata[rigaMax*matrix_order*2 + i] << std::endl;
 					// TODO: IN CASO IL VALORE PIVOT DELLA RIGA MAX SIA 0, SIGNIFICA CHE LA MATRICE NON E' INVERTIBILE!!!
 
+					std::cout << "PIVOT UTILIZZATO: " << matrice_augmentata[rigaMax * matrix_order * 2 + i] << std::endl;
 
 
 					// PIVOT

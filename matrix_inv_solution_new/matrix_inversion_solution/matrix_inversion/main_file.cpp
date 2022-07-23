@@ -2,25 +2,54 @@
 #include "headers.h"
 #include <iostream>
 #include <iomanip>
+#include <fstream>
+#include <string>
+
 
 int main(){
 	// Theoretical max is 16384
-	#define N 1024 
+	#define N 150 
 	#define REP 1
+	#define WANTWRITEFILE false 
+
+	// CREO MATRICE SU FILE TXT
+	if (WANTWRITEFILE) {
+		std::ofstream writeFile;
+		writeFile.open("matrix.txt");
+
+		std::vector<double> matriceIniziale = std::vector<double>(N*N);
+		for (int i = 0; i < matriceIniziale.size(); i++) {
+			//matriceIniziale[i] = (double)(1 / (double)(rand() % 1000 +1));
+			matriceIniziale[i] = ((double)(rand() % 100000));
+		}
+
+		for (int i = 0; i < matriceIniziale.size(); i++) {
+			writeFile << matriceIniziale[i] << std::endl;
+		}
+
+		writeFile.close();
+	}
 
 	for (int k = 0; k < REP; k++) {
+
+		std::ifstream readFile;
+		readFile.open("matrix.txt");
+
 		std::vector<double> matriceIniziale = std::vector<double>(N*N);
 		std::vector<double> matriceInversa = std::vector<double>(N*N);
-		std::cout << "INIZIALE: " << std::endl;
-		for (int i = 0; i < matriceIniziale.size(); i++) {
-			//matriceIniziale[i] = (double)(1 / (double)(rand() % 10 +1));
-			matriceIniziale[i] = ((double)(rand() % 1000 +1));
-			//std::cout << matriceIniziale[i] << " ";
+
+
+		// LEGGO MATRICE DA FILE TXT
+		std::string line;
+		int index = 0;
+		while (std::getline (readFile, line)){
+			matriceIniziale[index] = std::stod(line);
+			index++;
 		}
-		//matriceIniziale = {2,1,5,4,2,7,8,9,3};
-		//matriceIniziale = {2,8,5,1,10,5,9,9,3};
-		//matriceIniziale = {1,1,1,1,1,1,1,1,1};
-		//matriceIniziale = {1,0,0,0,0,0,0,0,1};
+		readFile.close();
+
+		std::cout << matriceIniziale[0] << std::endl;
+		std::cout << matriceIniziale[matriceIniziale.size()-1] << std::endl;
 
 		int ordine = sqrt(matriceIniziale.size());
 
@@ -35,13 +64,32 @@ int main(){
 			}
 			std::cout << matriceInversa[i] << "\t\t";
 		}
-*/
 		std::cout  << std::endl;
 		std::cout << std::endl;
+*/
 
 		// controllo che inversa sia corretta 
 		matrix_multiply(matriceInversa, matriceIniziale);
 	}
+}
+
+
+void createFileMatrix() {
+	std::ofstream file;
+	file.open("matrix.txt");
+
+	std::vector<double> matriceIniziale = std::vector<double>(N*N);
+	for (int i = 0; i < matriceIniziale.size(); i++) {
+		//matriceIniziale[i] = (double)(1 / (double)(rand() % 1000 +1));
+		matriceIniziale[i] = ((double)(rand() % 100000));
+	}
+
+	for (int i = 0; i < matriceIniziale.size(); i++) {
+		file << matriceIniziale[i] << std::endl;
+	}
+
+
+
 }
 
 

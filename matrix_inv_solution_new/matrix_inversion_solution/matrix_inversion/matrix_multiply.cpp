@@ -149,15 +149,27 @@ void matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA)
 
 		std::cout << "\n\n TOT: " << tot << std::endl;
 		
-		for (int i = 0; i < vettoreC.size(); i++) {
+		/*for (int i = 0; i < vettoreC.size(); i++) {
 			if ((int)vettoreC[i] >0) {
 				std::cout << "POSIZIONE: " << i << " , VALORE: " << vettoreC[i] << std::endl;
 			}
+		} */
+		
+		int r = 0;
+		int ordine = sqrt(vettoreC.size());
+		for (int i = 0; i < vettoreC.size(); i++) {
+			if (i != 0 && (i % ordine) == 0) {
+				r++;
+			}
+			if (i == (r * ordine + r)) {
+				vettoreC[i] = 1 - vettoreC[i];
+			}
 		}
+		
+
 
 
 		// NORMA DI FROBENIUS
-		double ordine = sqrt(vettoreC.size());
 		double somma = 0.0;
 		for (int i = 0; i < vettoreC.size(); i++) {
 			somma += vettoreC[i] * vettoreC[i];
