@@ -19,9 +19,9 @@
 			int i = get_global_id(1);
 
 			/* NB: la dimensione di questi array non rappresenta la lunghezza max. Se la supero vado però a finire dentro la global memory. */
-			__local double colId[4096];	
-			__local double row[4096];
-			__local double rowId[4096];
+			__local double colId[500];	
+			__local double row[500];
+			__local double rowId[500];
 			__local double AiIdx;
 
 			colId[i] = matrix[i*size + colIdx];
@@ -48,6 +48,8 @@
 
 			row[colId] = matrix[size*rowId + colId];
 			Aii = matrix[size*rowId + rowId];
+
+			barrier(CLK_GLOBAL_MEM_FENCE);
 			row[colId] = row[colId]/Aii;
 			matrix[size*rowId + colId] = row[colId];
 		})";
@@ -246,15 +248,16 @@
 			duration<float> tempoCq= duration_cast<duration<float>> (fineCq- inizioCq);
 			std::cout << "Tempo Comman Queue: " << tempoCq.count() << " seconds" << std::endl;
 
-
+			
+			std::vector<cl::Buffer> buffers;
 			// Creo buffers n x 2n per matrice augmentata
 			steady_clock::time_point inizioCreazioneBuffer= steady_clock::now();
 			std::cout << matrice_augmentata.size() << std::endl;
-			cl::Buffer augmented_matrix(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), &operationResult);
+			buffers.push_back(cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), &operationResult));
 			
 			// Creo buffer per matrice input
 			std::cout << matrice_input.size() << std::endl;
-			cl::Buffer input_matrix(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, matrice_input.size() * sizeof(cl_double), matrice_input.data(), &operationResult);
+			buffers.push_back(cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, matrice_input.size() * sizeof(cl_double), matrice_input.data(), &operationResult));
 	
 			steady_clock::time_point fineCreazioneBuffer= steady_clock::now();
 			if (operationResult != CL_SUCCESS) {
@@ -397,8 +400,8 @@
 			/// Ad ogni ciclo imposto nuovi parametri al kernel e procedo con una nuova esecuzione
 			// Ci pensa openCL ad aspettare che un  kernel finisca prima di inizaire l'altro
 			// MAKE AUGMENTED MATRIX
-			operationResult = make_augmented_matrix_kernel.setArg(0, augmented_matrix);
-			operationResult = make_augmented_matrix_kernel.setArg(1, input_matrix);
+			operationResult = make_augmented_matrix_kernel.setArg(0, buffers[0]);
+			operationResult = make_augmented_matrix_kernel.setArg(1, buffers[1]);
 			operationResult = make_augmented_matrix_kernel.setArg(2, matrix_order);
 			operationResult = commandQueue.enqueueNDRangeKernel(make_augmented_matrix_kernel, cl::NDRange(0,1), cl::NDRange((cl_int)(matrix_order*2), matrix_order), cl::NullRange, NULL, NULL);
 			if (operationResult != CL_SUCCESS) {
@@ -406,6 +409,14 @@
 					throw operationResult;
 			}
 			std::vector<cl_double> m = std::vector<cl_double>(matrice_augmentata.size(), 0);
+
+			operationResult = commandQueue.finish();
+	if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR GETTING DEVICES" << std::endl;
+				throw operationResult;
+			}
+
+
 
 /*
 			operationResult = commandQueue.enqueueReadBuffer(augmented_matrix, CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), m.data(), NULL);
@@ -420,13 +431,13 @@
 			std::cout << std::endl;
 */
 			// ROWS
-			operationResult = fix_row_kernel.setArg(0, augmented_matrix);
+			operationResult = fix_row_kernel.setArg(0, buffers[0]);
 			operationResult = fix_row_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
 			// COLUMNS
-			operationResult = fix_column_kernel.setArg(0, augmented_matrix);
+			operationResult = fix_column_kernel.setArg(0, buffers[0]);
 			operationResult = fix_column_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
 			// PIVOT 
-			operationResult = pivot_kernel.setArg(0, augmented_matrix);
+			operationResult = pivot_kernel.setArg(0, buffers[0]);
 			operationResult = pivot_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
 
 			tempoComputazioneInizio = steady_clock::now();
@@ -442,6 +453,14 @@
 						throw operationResult;
 					}
 
+					operationResult = commandQueue.finish();
+	if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR GETTING DEVICES" << std::endl;
+				throw operationResult;
+			}
+
+
+
 					// ROWS
 					operationResult = fix_row_kernel.setArg(2, i); // index riga da fixare
 					// come dimensione globale ho usato "2 * matrix_order, 1" perch� ogni kernel esegue l'operazione su tutti gli elementi di una sola riga 
@@ -453,6 +472,14 @@
 						throw operationResult;
 					}
 
+
+					operationResult = commandQueue.finish();
+	if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR GETTING DEVICES" << std::endl;
+				throw operationResult;
+			}
+
+
 					// COLUMNS
 					operationResult = fix_column_kernel.setArg(2, i); // index colonna da fixare
 					// come dimensione globale ho usato "2 * matrix_order, matrix_order" perch� ogni kernel esegue l'operazione su tutta la matrice augmentata
@@ -462,6 +489,14 @@
 						std::cerr << "ERROR ROW KERNEL EXECUTION" << std::endl;
 						throw operationResult;
 					}
+
+					operationResult = commandQueue.finish();
+	if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR GETTING DEVICES" << std::endl;
+				throw operationResult;
+			}
+
+
 				}
 			}
 			else {
@@ -469,7 +504,14 @@
 					// Prendo il numero di riga che contiene il valore più grande sulla colonna i, da rendere pivot per la riga i. 
 					// Il numero di riga deve essere maggiore di i. 
 
-					operationResult = commandQueue.enqueueReadBuffer(augmented_matrix, CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
+					operationResult = commandQueue.finish();
+	if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR GETTING DEVICES" << std::endl;
+				throw operationResult;
+			}
+
+
+					operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
 					cl_int rigaMax= i;
 					for (int k = i; k < matrix_order; k++) {
 						if (abs(matrice_augmentata[k * matrix_order * 2 +i]) >= abs(matrice_augmentata[rigaMax * matrix_order * 2 + i])) {
@@ -480,7 +522,14 @@
 					//std::cout << "VALORE RIGA MAX: " << matrice_augmentata[rigaMax*matrix_order*2 + i] << std::endl;
 					// TODO: IN CASO IL VALORE PIVOT DELLA RIGA MAX SIA 0, SIGNIFICA CHE LA MATRICE NON E' INVERTIBILE!!!
 
-					std::cout << "PIVOT UTILIZZATO: " << matrice_augmentata[rigaMax * matrix_order * 2 + i] << std::endl;
+					//std::cout << "PIVOT UTILIZZATO: " << matrice_augmentata[rigaMax * matrix_order * 2 + i] << std::endl;
+
+					operationResult = commandQueue.finish();
+	if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR GETTING DEVICES" << std::endl;
+				throw operationResult;
+			}
+
 
 
 					// PIVOT
@@ -491,6 +540,14 @@
 						std::cerr << "ERROR SETTING ARGUMENT PIVOT KERNEL" << std::endl;
 						throw operationResult;
 					}
+
+					operationResult = commandQueue.finish();
+						if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR GETTING DEVICES" << std::endl;
+				throw operationResult;
+			}
+
+
 
 					// ROWS
 					operationResult = fix_row_kernel.setArg(2, i); // index riga da fixare
@@ -503,6 +560,13 @@
 						throw operationResult;
 					}
 
+					operationResult = commandQueue.finish();
+	if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR GETTING DEVICES" << std::endl;
+				throw operationResult;
+			}
+
+
 					// COLUMNS
 					operationResult = fix_column_kernel.setArg(2, i); // index colonna da fixare
 					// come dimensione globale ho usato "2 * matrix_order, matrix_order" perch� ogni kernel esegue l'operazione su tutta la matrice augmentata
@@ -512,13 +576,27 @@
 						std::cerr << "ERROR ROW KERNEL EXECUTION" << std::endl;
 						throw operationResult;
 					}
+
+					operationResult = commandQueue.finish();
+	if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR GETTING DEVICES" << std::endl;
+				throw operationResult;
+			}
+
 				}
 			}
 
 
 
+			operationResult = commandQueue.finish();
+	if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR GETTING DEVICES" << std::endl;
+				throw operationResult;
+			}
+
+
 			// TODO: TENERE QUESTO READ BUFFER PERCHé SERVER PER IL CONTROLLO DELLA MATRICE IDENTITA
-			operationResult = commandQueue.enqueueReadBuffer(augmented_matrix, CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), m.data(), NULL);
+			operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), m.data(), NULL);
 			/*
 			std::cout << "\n AUG: " << std::endl;
 			for (int i = 0; i < m.size(); i++) {
@@ -532,14 +610,26 @@
 */
 			std::cout << std::endl;
 			operationResult = commandQueue.finish();
+	if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR GETTING DEVICES" << std::endl;
+				throw operationResult;
+			}
+
 			steady_clock::time_point tempoComputazioneFine = steady_clock::now();
 			duration<float> tempoComputazioneGPU = duration_cast<duration<float>> (tempoComputazioneFine - tempoComputazioneInizio);
 	
 			
 			// GET INVERTED MATRIX 
-			operationResult = get_inverted_matrix_kernel.setArg(0, augmented_matrix);
-			operationResult = get_inverted_matrix_kernel.setArg(1, input_matrix);
+			operationResult = get_inverted_matrix_kernel.setArg(0, buffers[0]);
+			operationResult = get_inverted_matrix_kernel.setArg(1, buffers[1]);
 			operationResult = get_inverted_matrix_kernel.setArg(2, matrix_order);
+
+			operationResult = commandQueue.finish();
+	if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR GETTING DEVICES" << std::endl;
+				throw operationResult;
+			}
+
 			operationResult = commandQueue.enqueueNDRangeKernel(get_inverted_matrix_kernel, cl::NDRange(0,1), cl::NDRange((cl_int)(2*matrix_order), matrix_order), cl::NullRange, NULL, NULL);
 			if (operationResult != CL_SUCCESS) {
 					std::cerr << "ERROR GET INVERTED MATRIX KERNEL EXECUTION" << std::endl;
@@ -547,6 +637,12 @@
 			}
 
 			operationResult = commandQueue.finish();
+	if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR GETTING DEVICES" << std::endl;
+				throw operationResult;
+			}
+
+
 
 
 			// BANDWIDTH
@@ -558,7 +654,14 @@
 			std::vector<cl_double> matriceResult= std::vector<cl_double>(matrice_input.size(), 0.0);
 			steady_clock::time_point inizioRead = steady_clock::now();
 			// NB: la matrice augmentata � il doppio rispetto al numero di elementi iniziali
-			operationResult = commandQueue.enqueueReadBuffer(input_matrix, CL_TRUE, 0, matriceResult.size() * sizeof(cl_double), matriceResult.data(), NULL);
+			operationResult = commandQueue.enqueueReadBuffer(buffers[1], CL_TRUE, 0, matriceResult.size() * sizeof(cl_double), matriceResult.data(), NULL);
+
+			operationResult = commandQueue.finish();
+	if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR GETTING DEVICES" << std::endl;
+				throw operationResult;
+			}
+
 			steady_clock::time_point fineRead = steady_clock::now();
 			duration<float> tempoRead = duration_cast<duration<float>> (fineRead - inizioRead);
 			std::cout << "Tempo Read: " << tempoRead.count() << " seconds" << std::endl;
@@ -598,6 +701,7 @@
 
 			std::cout << " \n\nNESSUN ERRORE CON CONTROLLO MATRICE IDENTITA DELLA MATRICE AUGMENATAT \n\n"; 
 
+			buffers.clear();
 			return matriceResult;
 		}
 		catch (cl_int e) {

@@ -53,7 +53,6 @@ void matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA)
 		}
 
 		// recupero device 
-		// TODO: CAPIRE AUTOMATICAMENTE COME PRENDERE LA GPU FISICA E NON QUELLA INTEGRATA DEL PROCESSORE
 		result = platform[0].getDevices(CL_DEVICE_TYPE_GPU, &device);
 		if (result != CL_SUCCESS) {
 			std::cerr << "ERROR GETTING DEVICE" << std::endl;
@@ -69,10 +68,10 @@ void matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA)
 
 
 		// CREAZIONE BUFFER E MOVIMENTO DATI IN MEMORIA
-		// NB: i buffer che contengono delle matrici sono degli array di float!!
-		cl::Buffer bufferA(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, matriceA.size() * sizeof(cl_double), matriceA.data(), &result);
-		cl::Buffer bufferB(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, matriceB.size() * sizeof(cl_double), matriceB.data(), &result);
-		cl::Buffer bufferC(context, CL_MEM_READ_ONLY, vettoreC.size() * sizeof(cl_double), NULL, &result);
+		std::vector<cl::Buffer> buffers;
+		buffers.push_back(cl::Buffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, matriceA.size() * sizeof(cl_double), matriceA.data(), &result));
+		buffers.push_back(cl::Buffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, matriceB.size() * sizeof(cl_double), matriceB.data(), &result));
+		buffers.push_back(cl::Buffer(context, CL_MEM_READ_ONLY, vettoreC.size() * sizeof(cl_double), NULL, &result));
 		if (result != CL_SUCCESS) {
 			std::cerr << "ERROR CREATING BUFFERS" << std::endl;
 			throw result;
@@ -106,10 +105,10 @@ void matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA)
 
 
 		// imposto gli argomenti del kernel	
-		result = kernelMultiply.setArg(0, bufferC);
+		result = kernelMultiply.setArg(0, buffers[2]);
 		result = kernelMultiply.setArg(1, (cl_int)sqrt(matriceA.size()));
-		result = kernelMultiply.setArg(2, bufferA);
-		result = kernelMultiply.setArg(3, bufferB);
+		result = kernelMultiply.setArg(2, buffers[0]);
+		result = kernelMultiply.setArg(3, buffers[1]);
 
 		if (result != CL_SUCCESS) {
 			std::cerr << "ERROR SETTING ARGUMENTS" << std::endl;
@@ -127,12 +126,25 @@ void matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA)
 			throw result;
 		}
 
+			
+		result = commandQueue.finish();
+	if (result != CL_SUCCESS) {
+				std::cerr << "ERROR GETTING DEVICES" << std::endl;
+				throw result;
+			}
+
 
 		// leggo i risultati dell'operazione e li sposto in memoria host
-		result = commandQueue.enqueueReadBuffer(bufferC, CL_TRUE, 0, vettoreC.size() * sizeof(cl_double), vettoreC.data(), NULL);
+		result = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, vettoreC.size() * sizeof(cl_double), vettoreC.data(), NULL);
 		
 			
 		result = commandQueue.finish();
+	if (result != CL_SUCCESS) {
+				std::cerr << "ERROR GETTING DEVICES" << std::endl;
+				throw result;
+			}
+
+
 		if (result != CL_SUCCESS) {
 			std::cerr << "ERROR SETTING ARGUMENTS" << std::endl;
 			throw result;
@@ -173,7 +185,20 @@ void matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA)
 		double somma = 0.0;
 		for (int i = 0; i < vettoreC.size(); i++) {
 			somma += vettoreC[i] * vettoreC[i];
+			//std::cout << "\n\nSOMMA ATTUALE: " << somma << std::endl;
 		} 
+/*
+		if (somma > 1) {
+			// STAMPO PORZIONE DEL VETTORE C
+			for (int i = 0; i < vettoreC.size()/100; i++) {
+				std::cout << vettoreC[i] <<  "  ";
+			} 
+
+		}
+*/
+
+
+
 
 		std::cout << "\n\nNORMA DI FROBENIUS: " << sqrt(somma) << std::endl;
 		std::cout << "\n\nRADICE ORDINE MATRICE: " << sqrt(ordine) << std::endl;
@@ -219,7 +244,7 @@ void matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA)
 
 */
 
-
+		buffers.clear();
 
 		if (result != CL_SUCCESS) {
 			std::cerr << "ERROR ENQUEUE READ BUFFER" << std::endl;
