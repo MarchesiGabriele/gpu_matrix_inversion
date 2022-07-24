@@ -19,9 +19,9 @@
 			int i = get_global_id(1);
 
 			/* NB: la dimensione di questi array non rappresenta la lunghezza max. Se la supero vado però a finire dentro la global memory. */
-			__local double colId[500];	
-			__local double row[500];
-			__local double rowId[500];
+			__local double colId[2700];	
+			__local double row[2700];
+			__local double rowId[2700];
 			__local double AiIdx;
 
 			colId[i] = matrix[i*size + colIdx];
@@ -30,7 +30,6 @@
 			if(colId[i] != 0 && i != colIdx){
 				/* Row sto attualmente aggiustando */
 				row[j] = matrix[i*size + j];
-
 				AiIdx = matrix[i*size + colIdx];
 				row[j] = row[j] - (AiIdx * rowId[j]); 
 				matrix[i*size + j] = row[j];
@@ -40,7 +39,7 @@
 		const std::string fixRowKernelString = R"(
 		#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 		__kernel void fixRowKernel(__global double *matrix, int size, int rowId){
-			__local double row[4096];
+			__local double row[2700];
 			__local double Aii;
 
 			/* scorro gli elementi della riga */
@@ -49,7 +48,7 @@
 			row[colId] = matrix[size*rowId + colId];
 			Aii = matrix[size*rowId + rowId];
 
-			barrier(CLK_GLOBAL_MEM_FENCE);
+			/* barrier(CLK_GLOBAL_MEM_FENCE); */
 			row[colId] = row[colId]/Aii;
 			matrix[size*rowId + colId] = row[colId];
 		})";
@@ -505,13 +504,20 @@
 					// Il numero di riga deve essere maggiore di i. 
 
 					operationResult = commandQueue.finish();
-	if (operationResult != CL_SUCCESS) {
-				std::cerr << "ERROR GETTING DEVICES" << std::endl;
-				throw operationResult;
-			}
+					if (operationResult != CL_SUCCESS) {
+						std::cerr << "ERROR GETTING DEVICES" << std::endl;
+						throw operationResult;
+					}
 
 
 					operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
+
+					operationResult = commandQueue.finish();
+					if (operationResult != CL_SUCCESS) {
+						std::cerr << "ERROR GETTING DEVICES" << std::endl;
+						throw operationResult;
+					}
+
 					cl_int rigaMax= i;
 					for (int k = i; k < matrix_order; k++) {
 						if (abs(matrice_augmentata[k * matrix_order * 2 +i]) >= abs(matrice_augmentata[rigaMax * matrix_order * 2 + i])) {
@@ -523,14 +529,10 @@
 					// TODO: IN CASO IL VALORE PIVOT DELLA RIGA MAX SIA 0, SIGNIFICA CHE LA MATRICE NON E' INVERTIBILE!!!
 
 					//std::cout << "PIVOT UTILIZZATO: " << matrice_augmentata[rigaMax * matrix_order * 2 + i] << std::endl;
-
-					operationResult = commandQueue.finish();
-	if (operationResult != CL_SUCCESS) {
-				std::cerr << "ERROR GETTING DEVICES" << std::endl;
-				throw operationResult;
-			}
-
-
+					if (matrice_augmentata[rigaMax * matrix_order * 2 + i] == 0) {
+						std::cout << "PIVOT INVALIDO: " << matrice_augmentata[rigaMax * matrix_order * 2 + i]<< std::endl;
+						throw;
+					}
 
 					// PIVOT
 					operationResult = pivot_kernel.setArg(2, i); // index riga su cui fare il pivot 
@@ -542,12 +544,10 @@
 					}
 
 					operationResult = commandQueue.finish();
-						if (operationResult != CL_SUCCESS) {
-				std::cerr << "ERROR GETTING DEVICES" << std::endl;
-				throw operationResult;
-			}
-
-
+					if (operationResult != CL_SUCCESS) {
+						std::cerr << "ERROR GETTING DEVICES" << std::endl;
+						throw operationResult;
+					}
 
 					// ROWS
 					operationResult = fix_row_kernel.setArg(2, i); // index riga da fixare
@@ -561,11 +561,10 @@
 					}
 
 					operationResult = commandQueue.finish();
-	if (operationResult != CL_SUCCESS) {
-				std::cerr << "ERROR GETTING DEVICES" << std::endl;
-				throw operationResult;
-			}
-
+					if (operationResult != CL_SUCCESS) {
+						std::cerr << "ERROR GETTING DEVICES" << std::endl;
+						throw operationResult;
+					}
 
 					// COLUMNS
 					operationResult = fix_column_kernel.setArg(2, i); // index colonna da fixare
@@ -578,18 +577,17 @@
 					}
 
 					operationResult = commandQueue.finish();
-	if (operationResult != CL_SUCCESS) {
-				std::cerr << "ERROR GETTING DEVICES" << std::endl;
-				throw operationResult;
-			}
-
+					if (operationResult != CL_SUCCESS) {
+						std::cerr << "ERROR GETTING DEVICES" << std::endl;
+						throw operationResult;
+					}
 				}
 			}
 
 
 
 			operationResult = commandQueue.finish();
-	if (operationResult != CL_SUCCESS) {
+			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR GETTING DEVICES" << std::endl;
 				throw operationResult;
 			}
@@ -607,10 +605,10 @@
 				std::cout << m[i] << "  ";
 			}
 
-*/
+			*/
 			std::cout << std::endl;
 			operationResult = commandQueue.finish();
-	if (operationResult != CL_SUCCESS) {
+			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR GETTING DEVICES" << std::endl;
 				throw operationResult;
 			}
@@ -625,7 +623,7 @@
 			operationResult = get_inverted_matrix_kernel.setArg(2, matrix_order);
 
 			operationResult = commandQueue.finish();
-	if (operationResult != CL_SUCCESS) {
+			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR GETTING DEVICES" << std::endl;
 				throw operationResult;
 			}
@@ -637,12 +635,10 @@
 			}
 
 			operationResult = commandQueue.finish();
-	if (operationResult != CL_SUCCESS) {
+			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR GETTING DEVICES" << std::endl;
 				throw operationResult;
 			}
-
-
 
 
 			// BANDWIDTH
@@ -657,7 +653,7 @@
 			operationResult = commandQueue.enqueueReadBuffer(buffers[1], CL_TRUE, 0, matriceResult.size() * sizeof(cl_double), matriceResult.data(), NULL);
 
 			operationResult = commandQueue.finish();
-	if (operationResult != CL_SUCCESS) {
+			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR GETTING DEVICES" << std::endl;
 				throw operationResult;
 			}
@@ -699,7 +695,7 @@
 				}
 			}
 
-			std::cout << " \n\nNESSUN ERRORE CON CONTROLLO MATRICE IDENTITA DELLA MATRICE AUGMENATAT \n\n"; 
+			std::cout << " \n\nNESSUN ERRORE CON CONTROLLO MATRICE IDENTITA DELLA MATRICE AUGMENATA \n\n"; 
 
 			buffers.clear();
 			return matriceResult;

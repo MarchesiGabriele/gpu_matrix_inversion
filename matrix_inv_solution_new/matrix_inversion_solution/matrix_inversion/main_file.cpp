@@ -47,7 +47,6 @@ int main(){
 		}
 		readFile.close();
 			
-		std::cout << matriceIniziale[22499];
 
 		//matriceIniziale = { 2,8,5,1,10,5,9,9,3 };
 		//matriceIniziale = {2,8,5,1,10,5,9,9,3};
@@ -61,10 +60,17 @@ int main(){
 		matriceInversa = matrix_inversion(matriceIniziale, ordine);
 
 		std::cout << std::setprecision(5) << "INVERSA: " << std::endl;
-		// STAMPO PORZIONE DEL VETTORE C
-		for (int i = 0; i < matriceInversa.size()/100; i++) {
+
+		std::cout << "\n\n PRIMI 50 VALORI MATRICE INVERSA" << std::endl;
+		for (int i = 0; i < 50; i++) {
 			std::cout << matriceInversa[i] <<  "  ";
 		} 
+
+		std::cout << "\n\n ULTIMI 50 VALORI MATRICE INVERSA" << std::endl;
+		for (int i = matriceInversa.size()-50; i < matriceInversa.size(); i++) {
+			std::cout << matriceInversa[i] <<  "  ";
+		} 
+
 
 /*
 		for (int i = 0; i <matriceInversa.size(); i++) {

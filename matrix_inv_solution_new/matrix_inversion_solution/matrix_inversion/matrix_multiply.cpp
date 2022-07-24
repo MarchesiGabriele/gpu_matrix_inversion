@@ -167,8 +167,8 @@ void matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA)
 			}
 		} */
 		
-		int r = 0;
 		int ordine = sqrt(vettoreC.size());
+	/*	int r = 0;
 		for (int i = 0; i < vettoreC.size(); i++) {
 			if (i != 0 && (i % ordine) == 0) {
 				r++;
@@ -177,7 +177,7 @@ void matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA)
 				vettoreC[i] = 1 - vettoreC[i];
 			}
 		}
-		
+	*/	
 
 
 
@@ -200,10 +200,10 @@ void matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA)
 
 
 
-		std::cout << "\n\nNORMA DI FROBENIUS: " << sqrt(somma) << std::endl;
+		std::cout << "\nNORMA DI FROBENIUS: " << sqrt(somma) << std::endl;
 		std::cout << "\n\nRADICE ORDINE MATRICE: " << sqrt(ordine) << std::endl;
 		std::cout << std::setprecision(60) << "\n\nERRORE: " << sqrt(ordine) - sqrt(somma) << std::endl;
-		std::cout << std::endl;
+		//std::cout << std::endl;
 
 
 
@@ -253,7 +253,6 @@ void matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA)
 
 	}
 	catch (cl_int e) {
-
 		std::cerr << "ERRORE: " << std::endl;
 		std::cerr << e << std::endl;
 	}
