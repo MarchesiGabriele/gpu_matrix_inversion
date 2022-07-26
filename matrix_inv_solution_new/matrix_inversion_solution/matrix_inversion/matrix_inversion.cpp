@@ -7,13 +7,14 @@
 #include <chrono>
 #define __CL_ENABLE_EXCEPTIONS
 #define areTherePivots true 
+#define A false 
 
 	std::vector<double> matrix_inversion(std::vector<double> matrix_vector, int matrix_order) {
 		// KERNEL PER FIXARE COLONNE
 		// NB: size deve essere pari alla larghezza della matrice augmentata
 		const std::string fixColumnKernelString = R"(
 		#pragma OPENCL EXTENSION cl_khr_fp64 : enable
-		__kernel void fixColumnKernel(__global double *matrix, int size, int colIdx){
+		__kernel void fixColumnKernel(__global double *matrix, int size, int colIdx, __global double *output){
 
 			int j = get_global_id(0);
 			int i = get_global_id(1);
@@ -32,7 +33,9 @@
 				row[j] = matrix[i*size + j];
 				AiIdx = matrix[i*size + colIdx];
 				row[j] = row[j] - (AiIdx * rowId[j]); 
-				matrix[i*size + j] = row[j];
+				output[i*size + j] = row[j];
+			}else{
+				output[i*size + j] = matrix[i*size + j];
 			}
 		})";
 
@@ -258,6 +261,8 @@
 			std::cout << matrice_input.size() << std::endl;
 			buffers.push_back(cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, matrice_input.size() * sizeof(cl_double), matrice_input.data(), &operationResult));
 	
+			buffers.push_back(cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,  matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), &operationResult));
+
 			steady_clock::time_point fineCreazioneBuffer= steady_clock::now();
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR CREATING BUFFERS" << std::endl;
@@ -435,6 +440,7 @@
 			// COLUMNS
 			operationResult = fix_column_kernel.setArg(0, buffers[0]);
 			operationResult = fix_column_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
+			operationResult = fix_column_kernel.setArg(3, buffers[2]); 
 			// PIVOT 
 			operationResult = pivot_kernel.setArg(0, buffers[0]);
 			operationResult = pivot_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
@@ -577,6 +583,13 @@
 					}
 
 					operationResult = commandQueue.finish();
+
+					operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
+
+					operationResult = commandQueue.finish();
+					operationResult = commandQueue.enqueueWriteBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
+
+					operationResult = commandQueue.finish();
 					if (operationResult != CL_SUCCESS) {
 						std::cerr << "ERROR GETTING DEVICES" << std::endl;
 						throw operationResult;
@@ -595,6 +608,37 @@
 
 			// TODO: TENERE QUESTO READ BUFFER PERCHé SERVER PER IL CONTROLLO DELLA MATRICE IDENTITA
 			operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), m.data(), NULL);
+			
+			int write = 0;
+			if (A) {
+				std::ofstream writeFile;
+				writeFile.precision(60);
+				writeFile.open("tt.txt");
+
+				for (int i = 0; i < m.size(); i++) {
+					writeFile << m[i] << std::endl;
+				}
+
+				writeFile.close();
+			}
+			else {
+				std::ifstream readFile;
+				readFile.precision(60);
+				readFile.open("tt.txt");
+
+				std::string line;
+				int index = 0;
+				while (std::getline (readFile, line)){
+					if ((m[index] - std::stod(line)) > (1e-10) && write < 20) {
+						std::cout << std::setprecision(20) << "VALORE DIVERSO: " << m[index] << " != " << std::stod(line) << std::endl;
+						write++;
+					}
+					index++;
+				}
+				readFile.close();
+			}
+
+
 			/*
 			std::cout << "\n AUG: " << std::endl;
 			for (int i = 0; i < m.size(); i++) {
