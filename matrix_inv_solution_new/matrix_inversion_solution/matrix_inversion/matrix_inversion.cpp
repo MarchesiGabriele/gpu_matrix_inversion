@@ -51,7 +51,7 @@
 			row[colId] = matrix[size*rowId + colId];
 			Aii = matrix[size*rowId + rowId];
 
-			/* barrier(CLK_GLOBAL_MEM_FENCE); */
+			barrier(CLK_GLOBAL_MEM_FENCE); 
 			row[colId] = row[colId]/Aii;
 			matrix[size*rowId + colId] = row[colId];
 		})";

@@ -8,8 +8,8 @@
 
 int main(){
 	// Theoretical max is 16384
-	#define N 1024 
-	#define REP 1
+	#define N 2048 
+	#define REP 1 
 	#define WANTWRITEFILE false 
 
 	// CREO MATRICE SU FILE TXT
