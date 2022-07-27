@@ -148,6 +148,7 @@
     <ClCompile Include="main_file.cpp" />
     <ClCompile Include="matrix_inversion.cpp" />
     <ClCompile Include="matrix_multiply.cpp" />
+    <ClCompile Include="pivot_max_test.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="headers.h" />

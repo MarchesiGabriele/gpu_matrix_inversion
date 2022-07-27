@@ -8,7 +8,7 @@
 
 int main(){
 	// Theoretical max is 16384
-	#define N 2048 
+	#define N 3 
 	#define REP 1 
 	#define WANTWRITEFILE false 
 
@@ -31,14 +31,13 @@ int main(){
 	}
 
 	for (int k = 0; k < REP; k++) {
-		std::ifstream readFile;
-		readFile.open("matrix.txt");
-
 		std::vector<double> matriceIniziale = std::vector<double>(N*N);
 		std::vector<double> matriceInversa = std::vector<double>(N*N);
 
-
+/*
 		// LEGGO MATRICE DA FILE TXT
+		std::ifstream readFile;
+		readFile.open("matrix.txt");
 		std::string line;
 		int index = 0;
 		while (std::getline (readFile, line)){
@@ -46,6 +45,49 @@ int main(){
 			index++;
 		}
 		readFile.close();
+*/
+		for (int i = 0; i < matriceIniziale.size(); i++) {
+			matriceIniziale[i] = rand() % 10;
+			std::cout << matriceIniziale[i] << std::endl;	
+		}
+
+		int ordine = sqrt(matriceIniziale.size());
+
+		std::vector<double> matrice_augmentata = {};
+		int riga = 0;
+		for (int i = 0; i < (matriceIniziale.size() * 2); i++) {
+			if (i == (riga * ordine* 2)) {
+				riga++;
+			}
+
+			if (i < (ordine * riga + ordine*(riga-1))) {
+				matrice_augmentata.push_back(matriceIniziale[i - ((riga-1) * ordine)]);
+			}
+			else {
+				if (i == (riga * ordine + (riga-1)*ordine + riga-1)){
+					matrice_augmentata.push_back(1);
+				}else{
+					matrice_augmentata.push_back(0);
+				}
+			}
+		}
+
+		std::cout << "\nINIZIALE: " << std::endl;
+		for (int i = 0; i < matrice_augmentata.size(); i++) {
+			if (i != 0 && (i % (ordine*2)) == 0) {
+				std::cout << std::endl;	
+			}
+
+			std::cout << matrice_augmentata[i] << "  ";
+		}
+		pivot_max_test(matrice_augmentata, ordine);
+
+
+		return(0);
+
+
+
+
 			
 
 		//matriceIniziale = { 2,8,5,1,10,5,9,9,3 };
@@ -54,7 +96,6 @@ int main(){
 		//matriceIniziale = {1,0,0,0,0,0,0,0,1};
 
 
-		int ordine = sqrt(matriceIniziale.size());
 
 		// calcolo inversa
 		matriceInversa = matrix_inversion(matriceIniziale, ordine);

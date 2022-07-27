@@ -1,10 +1,4 @@
 ﻿  main_file.cpp
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\main_file.cpp(57,14): warning C4244: 'inizializzazione': conversione da 'double' a 'int'. Possibile perdita di dati.
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\main_file.cpp(70,3): warning C4267: 'inizializzazione': conversione da 'size_t' a 'int'. Possibile perdita di dati.
-  matrix_inversion.cpp
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\matrix_inversion.cpp(121,23): warning C4244: 'inizializzazione': conversione da 'double' a 'float'. Possibile perdita di dati.
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\matrix_inversion.cpp(155,24): warning C4244: 'inizializzazione': conversione da 'double' a 'cl_int'. Possibile perdita di dati.
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\matrix_inversion.cpp(159,107): warning C4244: 'argomento': conversione da 'cl_double' a 'const unsigned __int64'. Possibile perdita di dati.
-  Generazione del codice in corso...
-  LINK : C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\x64\Debug\matrix_inversion.exe non trovato o non compilato dall'ultimo collegamento incrementale; verrà eseguito il collegamento completo
+C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\main_file.cpp(54,14): warning C4244: 'inizializzazione': conversione da 'double' a 'int'. Possibile perdita di dati.
+C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\main_file.cpp(111,3): warning C4267: 'inizializzazione': conversione da 'size_t' a 'int'. Possibile perdita di dati.
   matrix_inversion.vcxproj -> C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\x64\Debug\matrix_inversion.exe
