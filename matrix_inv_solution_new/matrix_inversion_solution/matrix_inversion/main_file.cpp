@@ -8,7 +8,7 @@
 
 int main(){
 	// Theoretical max is 16384
-	#define N 1024 
+	#define N 4096 
 	#define REP 1 
 	#define WANTWRITEFILE false 
 

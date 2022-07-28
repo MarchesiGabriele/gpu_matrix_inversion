@@ -33,7 +33,6 @@
 		#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 		__kernel void fixRowKernel(__global double *matrix, int size, int rowId, double Aii){
 			size_t localId = get_local_id(0);
-			size_t workGroupId = get_group_id(0);
 			size_t globalId = get_global_id(0);		
 
 			__local double row[256];
@@ -415,33 +414,27 @@
 
 
 			// ROWS
-			operationResult = fix_row_kernel.setArg(0, buffers[0]);
 			operationResult = fix_row_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
 			// COLUMNS
-			operationResult = fix_column_kernel.setArg(0, buffers[0]);
 			operationResult = fix_column_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
-			operationResult = fix_column_kernel.setArg(3, buffers[2]); 
 			// PIVOT 
-			operationResult = pivot_kernel.setArg(0, buffers[0]);
 			operationResult = pivot_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
 
 			tempoComputazioneInizio = steady_clock::now();
-			steady_clock::time_point pivotInizio = steady_clock::now();
-			steady_clock::time_point rowInizio = steady_clock::now();
-			steady_clock::time_point columnInizio = steady_clock::now();
-
-		//	duration<float> tempoComputazioneGPU = duration_cast<duration<float>> (tempoComputazioneFine - tempoComputazioneInizio);
 			duration<float> pivotComputeTime = duration_cast<duration<float>> (steady_clock::now() - steady_clock::now());
 			duration<float> pivotTime = duration_cast<duration<float>> (steady_clock::now() - steady_clock::now());
 			duration<float> rowTime = duration_cast<duration<float>> (steady_clock::now() - steady_clock::now());
 			duration<float> columnTime = duration_cast<duration<float>> (steady_clock::now() - steady_clock::now());
 			duration<float> readWriteTime = duration_cast<duration<float>> (steady_clock::now() - steady_clock::now());
-
+			
 
 			for (int i = 0; i < matrix_order; i++) { 
 
 				steady_clock::time_point pivotMaxInizio = steady_clock::now();
-				operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
+				if ((i%2) == 0) 
+					operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
+				else 
+					operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
 
 				cl_int rigaMax= i;
 				cl_double pivotMax = 0.0;
@@ -461,6 +454,11 @@
 
 				// PIVOT
 				steady_clock::time_point pivotInizio = steady_clock::now();
+				if((i%2) == 0)
+					operationResult = pivot_kernel.setArg(0, buffers[0]);
+				else 
+					operationResult = pivot_kernel.setArg(0, buffers[2]);
+
 				operationResult = pivot_kernel.setArg(2, i); // index riga su cui fare il pivot 
 				operationResult = pivot_kernel.setArg(3, rigaMax); 
 				operationResult = commandQueue.enqueueNDRangeKernel(pivot_kernel, cl::NullRange, cl::NDRange((cl_int)(matrix_order*2)), cl::NullRange, NULL, NULL);
@@ -468,6 +466,11 @@
 				pivotTime +=  duration_cast<duration<float>> (pivotFine- pivotInizio);
 
 				// ROWS
+				if ((i % 2) == 0) 
+					operationResult = fix_row_kernel.setArg(0, buffers[0]); 
+				else 
+					operationResult = fix_row_kernel.setArg(0, buffers[2]); 
+
 				steady_clock::time_point rowInizio = steady_clock::now();
 				operationResult = fix_row_kernel.setArg(2, i); // index riga da fixare
 				operationResult = fix_row_kernel.setArg(3, pivotMax); // index riga da fixare
@@ -476,13 +479,21 @@
 				rowTime +=  duration_cast<duration<float>> (rowFine - rowInizio);
 
 				// COLUMNS
+				if ((i % 2) == 0) {
+					operationResult = fix_column_kernel.setArg(0, buffers[0]); // read
+					operationResult = fix_column_kernel.setArg(3, buffers[2]); // write
+				}
+				else {
+					operationResult = fix_column_kernel.setArg(0, buffers[2]); // read 
+					operationResult = fix_column_kernel.setArg(3, buffers[0]); // write
+				}
 				steady_clock::time_point colInizio = steady_clock::now();
 				operationResult = fix_column_kernel.setArg(2, i); // index colonna da fixare
 				operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange((cl_int)(matrix_order*2), matrix_order), cl::NullRange, NULL, NULL);
 				steady_clock::time_point colFine= steady_clock::now();
 				columnTime +=  duration_cast<duration<float>> (colFine - colInizio);
 	
-
+/*
 				steady_clock::time_point rwInizio = steady_clock::now();
 				operationResult = commandQueue.finish();
 				operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
@@ -490,7 +501,7 @@
 				operationResult = commandQueue.enqueueWriteBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
 				steady_clock::time_point rwFine = steady_clock::now();
 				readWriteTime +=  duration_cast<duration<float>> (rwFine - rwInizio);
-
+*/
 				operationResult = commandQueue.finish();
 			}
 		
@@ -511,7 +522,11 @@
 
 
 			// TODO: TENERE QUESTO READ BUFFER PERCHé SERVER PER IL CONTROLLO DELLA MATRICE IDENTITA
-			operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), m.data(), NULL);
+			if(((matrix_order - 1) % 2) == 0)
+				operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), m.data(), NULL);
+			else
+				operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), m.data(), NULL);
+
 			operationResult = commandQueue.finish();
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR GETTING DEVICES" << std::endl;
@@ -525,7 +540,11 @@
 			std::cout << "ERRORE TIME: " << (tempoComputazioneGPU - tot).count() << std::endl;
 			
 			// GET INVERTED MATRIX 
-			operationResult = get_inverted_matrix_kernel.setArg(0, buffers[0]);
+			if(((matrix_order - 1) % 2) == 0)
+				operationResult = get_inverted_matrix_kernel.setArg(0, buffers[2]);
+			else	
+				operationResult = get_inverted_matrix_kernel.setArg(0, buffers[0]);
+			
 			operationResult = get_inverted_matrix_kernel.setArg(1, buffers[1]);
 			operationResult = get_inverted_matrix_kernel.setArg(2, matrix_order);
 
