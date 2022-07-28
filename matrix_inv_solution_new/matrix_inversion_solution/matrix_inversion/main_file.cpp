@@ -8,7 +8,7 @@
 
 int main(){
 	// Theoretical max is 16384
-	#define N 4096 
+	#define N 1024 
 	#define REP 1 
 	#define WANTWRITEFILE false 
 
@@ -50,6 +50,27 @@ int main(){
 			matriceIniziale[i] = rand() % 10;
 		}
 
+	
+
+		//matriceIniziale = { 2,8,5,1,10,5,9,9,3 };
+		//matriceIniziale = {2,8,5,1,10,5,9,9,3};
+		//matriceIniziale = {1,1,1,1,1,1,1,1,1};
+		//matriceIniziale = {1,0,0,0,0,0,0,0,1};
+/*
+		// ILL CONDITIONED MATRIX
+		matriceIniziale.clear();
+		for (int i = 0; i < N; i++) {
+			for (int j = 0; j < N; j++) {
+				matriceIniziale.push_back((double)1/(i+j+1));
+			}
+		}
+*/
+/*
+		for (int i = 0; i < N*N; i++) {
+			std::cout << matriceIniziale[i] << " ";
+		}
+*/
+
 		int ordine = sqrt(matriceIniziale.size());
 /*
 		std::vector<double> matrice_augmentata = {};
@@ -86,18 +107,11 @@ int main(){
 
 
 
-			
-
-		//matriceIniziale = { 2,8,5,1,10,5,9,9,3 };
-		//matriceIniziale = {2,8,5,1,10,5,9,9,3};
-		//matriceIniziale = {1,1,1,1,1,1,1,1,1};
-		//matriceIniziale = {1,0,0,0,0,0,0,0,1};
-
-
+		
 
 		// calcolo inversa
 		matriceInversa = matrix_inversion(matriceIniziale, ordine);
-
+/*
 		std::cout << std::setprecision(5) << "INVERSA: " << std::endl;
 
 		std::cout << "\n\n PRIMI 50 VALORI MATRICE INVERSA" << std::endl;
@@ -109,7 +123,7 @@ int main(){
 		for (int i = matriceInversa.size()-50; i < matriceInversa.size(); i++) {
 			std::cout << matriceInversa[i] <<  "  ";
 		} 
-
+*/
 
 /*
 		for (int i = 0; i <matriceInversa.size(); i++) {
