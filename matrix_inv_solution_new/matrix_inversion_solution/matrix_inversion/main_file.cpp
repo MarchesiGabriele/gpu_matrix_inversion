@@ -8,7 +8,7 @@
 
 int main(){
 	// Theoretical max is 16384
-	#define N 4000 
+	#define N 4096 
 	#define REP 1 
 	#define WANTWRITEFILE false 
 
@@ -47,7 +47,7 @@ int main(){
 		readFile.close();
 */
 		for (int i = 0; i < matriceIniziale.size(); i++) {
-			matriceIniziale[i] = rand() % 10 +1;
+			matriceIniziale[i] = rand() % 10;
 		}
 
 		int ordine = sqrt(matriceIniziale.size());

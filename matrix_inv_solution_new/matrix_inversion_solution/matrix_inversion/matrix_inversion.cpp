@@ -33,17 +33,17 @@
 
 		const std::string fixRowKernelString = R"(
 		#pragma OPENCL EXTENSION cl_khr_fp64 : enable
-		__kernel void fixRowKernel(__global double *matrix, int size, int rowId){
-			__local double row[8000];
-			__local double Aii;
+		__kernel void fixRowKernel(__global double *matrix, int size, int rowId, double Aii){
+			size_t localId = get_local_id(0);
+			size_t workGroupId = get_group_id(0);
+			size_t globalId = get_global_id(0);		
 
-			int colId = get_global_id(0);
+			__local double row[256];
 
-			row[colId] = matrix[size*rowId + colId];
-			Aii = matrix[size*rowId + rowId];
-
+			row[localId] = matrix[size*rowId + globalId];
 			barrier(CLK_LOCAL_MEM_FENCE); 
-			matrix[size*rowId + colId] = row[colId]/Aii;
+
+			matrix[size*rowId + globalId] = row[localId]/Aii;
 		})";
 
 		// Size corrisponde alla larghezza della matrice augmentata
@@ -449,11 +449,13 @@
 				}
 
 				cl_int rigaMax= i;
+				cl_double pivotMax = 0.0;
 				for (int k = i; k < matrix_order; k++) {
 					if (abs(matrice_augmentata[k * matrix_order * 2 +i]) >= abs(matrice_augmentata[rigaMax * matrix_order * 2 + i])) {
 						rigaMax = k;
 					}
 				}
+				pivotMax = matrice_augmentata[rigaMax * matrix_order * 2 + i];
 				//std::cout << "RIGA MAX: " << rigaMax << std::endl;
 				//std::cout << "VALORE RIGA MAX: " << matrice_augmentata[rigaMax*matrix_order*2 + i] << std::endl;
 				// TODO: IN CASO IL VALORE PIVOT DELLA RIGA MAX SIA 0, SIGNIFICA CHE LA MATRICE NON E' INVERTIBILE!!!
@@ -482,9 +484,11 @@
 
 				// ROWS
 				operationResult = fix_row_kernel.setArg(2, i); // index riga da fixare
+				operationResult = fix_row_kernel.setArg(3, pivotMax); // index riga da fixare
 				// come dimensione globale ho usato "2 * matrix_order, 1" perch� ogni kernel esegue l'operazione su tutti gli elementi di una sola riga 
 				tempoFixRowInizio = steady_clock::now();
-				operationResult = commandQueue.enqueueNDRangeKernel(fix_row_kernel, cl::NullRange, cl::NDRange((cl_int)(matrix_order*2), 1), cl::NullRange, NULL, NULL);
+				operationResult = commandQueue.enqueueNDRangeKernel(fix_row_kernel, cl::NullRange, cl::NDRange(matrix_order*2), cl::NDRange(256), NULL, NULL);
+
 				tempoFixRowFine = steady_clock::now();
 				if (operationResult != CL_SUCCESS) {
 					std::cerr << "ERROR SETTING ARGUMENT FIX ROW KERNEL" << std::endl;
