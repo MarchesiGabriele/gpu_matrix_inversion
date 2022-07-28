@@ -61,7 +61,6 @@ void pivot_max_test(std::vector<double> matrix_vector, int matrix_order) {
 			matrix[index*size + globalId] = currentRow[localId];
 			matrix[colId*size + globalId] = maxRow[localId];
 		})";
-
 	try {
 		std::vector<cl::Platform>  platforms;
 		cl::Platform::get(&platforms);
@@ -83,10 +82,10 @@ void pivot_max_test(std::vector<double> matrix_vector, int matrix_order) {
 
 		// Contiene matrice iniziale
 		// Lo swap viene eseguito sempre sulla matrice iniziale, non uno un buffer diverso solo per l'output
-		cl::Buffer inputBuffer(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, matrix_vector.size() * sizeof(cl_double), matrix_vector.data());
-		auto workGroupsNumber = matrix_vector.size() / MAX_WORK_GROUP_SIZE;
+		cl::Buffer inputBuffer(context, CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, matrix_vector.size() * sizeof(cl_double), matrix_vector.data());
+		auto workGroupsNumber = matrix_order / MAX_WORK_GROUP_SIZE;
 		// Contiene i risultati di ciascun workgroup
-		cl::Buffer outputBuffer(context, CL_MEM_READ_WRITE | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, workGroupsNumber * sizeof(cl_double2));
+		cl::Buffer outputBuffer(context, CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, workGroupsNumber * sizeof(cl_double2));
 
 
 		cl::Program maxProgram(context, cl::Program::Sources(1, std::make_pair(maxKernelString.c_str(), maxKernelString.length() + 1)));
@@ -113,45 +112,65 @@ void pivot_max_test(std::vector<double> matrix_vector, int matrix_order) {
 
 		maxKernel.setArg(0, inputBuffer);
 		maxKernel.setArg(1, matrix_order * 2);
-		maxKernel.setArg(3, MAX_WORK_GROUP_SIZE * sizeof(double));
+		maxKernel.setArg(3, MAX_WORK_GROUP_SIZE * sizeof(double), nullptr);
 		maxKernel.setArg(4, outputBuffer);
 
-		std::vector<cl_double2> max = {};
+		swapKernel.setArg(0, inputBuffer);
+		swapKernel.setArg(1, matrix_order*2);
+
+		std::vector<cl_double2> max(256, cl_double2());
 		int indexMax = 0;
 		for (int i = 0; i < matrix_order; i++) {
 			maxKernel.setArg(2, i);
-			commandQueue.enqueueNDRangeKernel(maxKernel, cl::NDRange(0, 0), cl::NDRange(matrix_order, 0), cl::NDRange(256, 0), NULL, NULL);
+			operationResult = commandQueue.enqueueNDRangeKernel(maxKernel, cl::NDRange(0, 0), cl::NDRange(matrix_order), cl::NDRange(256), NULL, NULL);
+			if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR KERNEL MAX" << std::endl;
+				throw operationResult;
+			}
 
-
-			commandQueue.enqueueReadBuffer(outputBuffer, CL_TRUE, 0, workGroupsNumber * sizeof(cl_double2), max.data(), NULL);
+			operationResult = commandQueue.enqueueReadBuffer(outputBuffer, CL_TRUE, 0, workGroupsNumber * sizeof(cl_double2), max.data(), NULL);
+			if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR READ" << std::endl;
+				throw operationResult;
+			}
 			commandQueue.finish();
 			indexMax = 0;
-			for (int j = 0; j < MAX_WORK_GROUP_SIZE; j++) {
-				for (int k = 0; k < MAX_WORK_GROUP_SIZE; k++) {
+			for (int j = 0; j < workGroupsNumber; j++) {
+				//std::cout << "\n" << max[j].x << std::endl;
+				for (int k = 0; k < workGroupsNumber; k++) {
 					if (max[j].x < max[k].x)
 						break;
 					indexMax = max[j].y;
 				}
 			}
-
-			commandQueue.enqueueNDRangeKernel(swapKernel, cl::NDRange(0, 0), cl::NDRange(2 * matrix_order, 0), cl::NDRange(256, 0), NULL, NULL);
-		}
 			
-			commandQueue.finish();
-			commandQueue.enqueueReadBuffer(outputBuffer, CL_TRUE, 0, matrix_vector.size() * 2 * sizeof(double), matrix_vector.data(), NULL);
-			commandQueue.finish();
-
-			std::cout << "\n PIVOTED: " << std::endl;
-			for (int i = 0; i < matrix_vector.size(); i++) {
-				if (i != 0 && (i % (matrix_order*2)) == 0) {
-					std::cout << std::endl;	
-				}
-
-				std::cout << matrix_vector[i] << "  ";
+			swapKernel.setArg(2, i);
+			swapKernel.setArg(3, indexMax);
+			operationResult = commandQueue.enqueueNDRangeKernel(swapKernel, cl::NDRange(0, 0), cl::NDRange(2 * matrix_order), cl::NDRange(256), NULL, NULL);
+			if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR KERNEL SWAP" << std::endl;
+				throw operationResult;
 			}
-
-
+		}
 	
+
+		commandQueue.finish();
+		std::vector<double> m(matrix_order, 0.0);
+		operationResult = commandQueue.enqueueReadBuffer(inputBuffer, CL_TRUE, 0, matrix_vector.size() * sizeof(double), m.data(), NULL);
+		if (operationResult != CL_SUCCESS) {
+			std::cerr << "ERROR READ 2" << std::endl;
+			throw operationResult;
+		}
+		commandQueue.finish();
+
+		std::cout << "\n PIVOTED: " << std::endl;
+		for (int i = 0; i < 256; i++) {
+		/*	if (i != 0 && (i % (matrix_order * 2)) == 0) {
+				std::cout << std::endl;	
+			}
+		*/
+			std::cout << m[i*512] << " ";
+		}
 	}
 	catch (cl_int e) {
 		std::cout << e;

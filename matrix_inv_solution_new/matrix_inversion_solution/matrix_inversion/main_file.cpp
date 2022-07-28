@@ -8,7 +8,7 @@
 
 int main(){
 	// Theoretical max is 16384
-	#define N 3 
+	#define N 4000 
 	#define REP 1 
 	#define WANTWRITEFILE false 
 
@@ -47,12 +47,11 @@ int main(){
 		readFile.close();
 */
 		for (int i = 0; i < matriceIniziale.size(); i++) {
-			matriceIniziale[i] = rand() % 10;
-			std::cout << matriceIniziale[i] << std::endl;	
+			matriceIniziale[i] = rand() % 10 +1;
 		}
 
 		int ordine = sqrt(matriceIniziale.size());
-
+/*
 		std::vector<double> matrice_augmentata = {};
 		int riga = 0;
 		for (int i = 0; i < (matriceIniziale.size() * 2); i++) {
@@ -71,19 +70,18 @@ int main(){
 				}
 			}
 		}
-
+*/
+	/*
 		std::cout << "\nINIZIALE: " << std::endl;
-		for (int i = 0; i < matrice_augmentata.size(); i++) {
-			if (i != 0 && (i % (ordine*2)) == 0) {
+		for (int i = 0; i < 256; i++) {
+			if (i != 0 && (i % (ordine * 2)) == 0) {
 				std::cout << std::endl;	
 			}
+		
+			std::cout << matrice_augmentata[i*512] << " ";
+		} pivot_max_test(matrice_augmentata, ordine);
+*/
 
-			std::cout << matrice_augmentata[i] << "  ";
-		}
-		pivot_max_test(matrice_augmentata, ordine);
-
-
-		return(0);
 
 
 

@@ -20,11 +20,12 @@
 			__local double row[8000];
 			__local double AiIdx;
 
+		/*  row[j] = matrix[i*size + j]; */
+			AiIdx = matrix[i*size + colIdx];
+			barrier(CLK_LOCAL_MEM_FENCE);
+
 			if(matrix[i*size + colIdx] != 0 && i != colIdx){
-				row[j] = matrix[i*size + j];
-				AiIdx = matrix[i*size + colIdx];
-				row[j] = row[j] - (AiIdx * matrix[colIdx*size + j]);
-				output[i*size + j] = row[j];
+				output[i*size + j] = matrix[i*size + j] - (AiIdx * matrix[colIdx*size + j]);
 			}else{
 				output[i*size + j] = matrix[i*size + j];
 			}
@@ -36,15 +37,13 @@
 			__local double row[8000];
 			__local double Aii;
 
-			/* scorro gli elementi della riga */
 			int colId = get_global_id(0);
 
 			row[colId] = matrix[size*rowId + colId];
 			Aii = matrix[size*rowId + rowId];
 
-			barrier(CLK_GLOBAL_MEM_FENCE); 
-			row[colId] = row[colId]/Aii;
-			matrix[size*rowId + colId] = row[colId];
+			barrier(CLK_LOCAL_MEM_FENCE); 
+			matrix[size*rowId + colId] = row[colId]/Aii;
 		})";
 
 		// Size corrisponde alla larghezza della matrice augmentata
@@ -52,17 +51,13 @@
 		const std::string pivotKernelString = R"(
 		#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 		__kernel void pivotElementsKernel(__global double *matrix, int size, int rowId, int maxRow){
-
 			int j = get_global_id(0);
-			__local double oldRow[4000];
-			__local double newRow[4000];
-			oldRow[j] = matrix[size*rowId + j];
-			newRow[j] = matrix[size*maxRow + j];
+			double old = 0.0;
+			old = matrix[size*rowId + j];
+			barrier(CLK_LOCAL_MEM_FENCE); 
 
-			barrier(CLK_GLOBAL_MEM_FENCE); 
-		
-			matrix[size*rowId + j] = newRow[j];
-			matrix[size*maxRow + j] = oldRow[j];
+			matrix[size*rowId + j] = matrix[size*maxRow + j];
+			matrix[size*maxRow + j] = old;
 		})";
 
 		// Con matrixOrder si indende l'ordine della matrice iniziale, non la larghezza della matrice augmentata!!
@@ -415,7 +410,7 @@
 			std::vector<cl_double> m = std::vector<cl_double>(matrice_augmentata.size(), 0);
 
 			operationResult = commandQueue.finish();
-	if (operationResult != CL_SUCCESS) {
+			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR GETTING DEVICES" << std::endl;
 				throw operationResult;
 			}
@@ -434,103 +429,97 @@
 
 			tempoComputazioneInizio = steady_clock::now();
 
-				for (int i = 0; i < matrix_order; i++) { 
-					// Prendo il numero di riga che contiene il valore più grande sulla colonna i, da rendere pivot per la riga i. 
-					// Il numero di riga deve essere maggiore di i. 
+			for (int i = 0; i < matrix_order; i++) { 
+				// Prendo il numero di riga che contiene il valore più grande sulla colonna i, da rendere pivot per la riga i. 
+				// Il numero di riga deve essere maggiore di i. 
 
-					operationResult = commandQueue.finish();
-					if (operationResult != CL_SUCCESS) {
-						std::cerr << "ERROR GETTING DEVICES" << std::endl;
-						throw operationResult;
-					}
-
-
-					steady_clock::time_point tempoPivot = steady_clock::now();
-					operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
-
-					operationResult = commandQueue.finish();
-					if (operationResult != CL_SUCCESS) {
-						std::cerr << "ERROR GETTING DEVICES" << std::endl;
-						throw operationResult;
-					}
-
-					cl_int rigaMax= i;
-					for (int k = i; k < matrix_order; k++) {
-						if (abs(matrice_augmentata[k * matrix_order * 2 +i]) >= abs(matrice_augmentata[rigaMax * matrix_order * 2 + i])) {
-							rigaMax = k;
-						}
-					}
-					//std::cout << "RIGA MAX: " << rigaMax << std::endl;
-					//std::cout << "VALORE RIGA MAX: " << matrice_augmentata[rigaMax*matrix_order*2 + i] << std::endl;
-					// TODO: IN CASO IL VALORE PIVOT DELLA RIGA MAX SIA 0, SIGNIFICA CHE LA MATRICE NON E' INVERTIBILE!!!
-
-					//std::cout << "PIVOT UTILIZZATO: " << matrice_augmentata[rigaMax * matrix_order * 2 + i] << std::endl;
-					if (matrice_augmentata[rigaMax * matrix_order * 2 + i] == 0) {
-						std::cout << "PIVOT INVALIDO: " << matrice_augmentata[rigaMax * matrix_order * 2 + i]<< std::endl;
-						throw;
-					}
-
-					// PIVOT
-					operationResult = pivot_kernel.setArg(2, i); // index riga su cui fare il pivot 
-					operationResult = pivot_kernel.setArg(3, rigaMax); 
-					operationResult = commandQueue.enqueueNDRangeKernel(pivot_kernel, cl::NullRange, cl::NDRange((cl_int)(matrix_order*2)), cl::NullRange, NULL, NULL);
-					if (operationResult != CL_SUCCESS) {
-						std::cerr << "ERROR SETTING ARGUMENT PIVOT KERNEL" << std::endl;
-						throw operationResult;
-					}
-
-					operationResult = commandQueue.finish();
-					if (operationResult != CL_SUCCESS) {
-						std::cerr << "ERROR GETTING DEVICES" << std::endl;
-						throw operationResult;
-					}
-
-					steady_clock::time_point tempoPivotFine = steady_clock::now();
-					duration<float> tempoPivotDurata= duration_cast<duration<float>> (tempoPivotFine - tempoPivot);
-					std::cout << "TEMPO PIVOT MAX TEORICO : " << tempoPivotDurata.count() << std::endl;
-	
+				operationResult = commandQueue.finish();
+				if (operationResult != CL_SUCCESS) {
+					std::cerr << "ERROR GETTING DEVICES" << std::endl;
+					throw operationResult;
+				}
 
 
-					// ROWS
-					operationResult = fix_row_kernel.setArg(2, i); // index riga da fixare
-					// come dimensione globale ho usato "2 * matrix_order, 1" perch� ogni kernel esegue l'operazione su tutti gli elementi di una sola riga 
-					tempoFixRowInizio = steady_clock::now();
-					operationResult = commandQueue.enqueueNDRangeKernel(fix_row_kernel, cl::NullRange, cl::NDRange((cl_int)(matrix_order*2), 1), cl::NullRange, NULL, NULL);
-					tempoFixRowFine = steady_clock::now();
-					if (operationResult != CL_SUCCESS) {
-						std::cerr << "ERROR SETTING ARGUMENT FIX ROW KERNEL" << std::endl;
-						throw operationResult;
-					}
+				operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
 
-					operationResult = commandQueue.finish();
-					if (operationResult != CL_SUCCESS) {
-						std::cerr << "ERROR GETTING DEVICES" << std::endl;
-						throw operationResult;
-					}
+				operationResult = commandQueue.finish();
+				if (operationResult != CL_SUCCESS) {
+					std::cerr << "ERROR GETTING DEVICES" << std::endl;
+					throw operationResult;
+				}
 
-					// COLUMNS
-					operationResult = fix_column_kernel.setArg(2, i); // index colonna da fixare
-					// come dimensione globale ho usato "2 * matrix_order, matrix_order" perch� ogni kernel esegue l'operazione su tutta la matrice augmentata
-					// ogni kernel considera una colonna da sistemare, ma per ogni elemento della colonna devo fixare l'intera riga quindi eseguo operazioni su tutti gli elementi della matrice augmentata
-					operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange((cl_int)(matrix_order*2), matrix_order), cl::NullRange, NULL, NULL);
-					if (operationResult != CL_SUCCESS) {
-						std::cerr << "ERROR ROW KERNEL EXECUTION" << std::endl;
-						throw operationResult;
-					}
-
-					operationResult = commandQueue.finish();
-
-					operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
-
-					operationResult = commandQueue.finish();
-					operationResult = commandQueue.enqueueWriteBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
-
-					operationResult = commandQueue.finish();
-					if (operationResult != CL_SUCCESS) {
-						std::cerr << "ERROR GETTING DEVICES" << std::endl;
-						throw operationResult;
+				cl_int rigaMax= i;
+				for (int k = i; k < matrix_order; k++) {
+					if (abs(matrice_augmentata[k * matrix_order * 2 +i]) >= abs(matrice_augmentata[rigaMax * matrix_order * 2 + i])) {
+						rigaMax = k;
 					}
 				}
+				//std::cout << "RIGA MAX: " << rigaMax << std::endl;
+				//std::cout << "VALORE RIGA MAX: " << matrice_augmentata[rigaMax*matrix_order*2 + i] << std::endl;
+				// TODO: IN CASO IL VALORE PIVOT DELLA RIGA MAX SIA 0, SIGNIFICA CHE LA MATRICE NON E' INVERTIBILE!!!
+
+				//std::cout << "PIVOT UTILIZZATO: " << matrice_augmentata[rigaMax * matrix_order * 2 + i] << std::endl;
+				if (matrice_augmentata[rigaMax * matrix_order * 2 + i] == 0) {
+					std::cout << "PIVOT INVALIDO: " << matrice_augmentata[rigaMax * matrix_order * 2 + i]<< std::endl;
+					throw;
+				}
+
+				// PIVOT
+				operationResult = pivot_kernel.setArg(2, i); // index riga su cui fare il pivot 
+				operationResult = pivot_kernel.setArg(3, rigaMax); 
+				operationResult = commandQueue.enqueueNDRangeKernel(pivot_kernel, cl::NullRange, cl::NDRange((cl_int)(matrix_order*2)), cl::NullRange, NULL, NULL);
+				if (operationResult != CL_SUCCESS) {
+					std::cerr << "ERROR SETTING ARGUMENT PIVOT KERNEL" << std::endl;
+					throw operationResult;
+				}
+
+				operationResult = commandQueue.finish();
+				if (operationResult != CL_SUCCESS) {
+					std::cerr << "ERROR GETTING DEVICES" << std::endl;
+					throw operationResult;
+				}
+
+
+				// ROWS
+				operationResult = fix_row_kernel.setArg(2, i); // index riga da fixare
+				// come dimensione globale ho usato "2 * matrix_order, 1" perch� ogni kernel esegue l'operazione su tutti gli elementi di una sola riga 
+				tempoFixRowInizio = steady_clock::now();
+				operationResult = commandQueue.enqueueNDRangeKernel(fix_row_kernel, cl::NullRange, cl::NDRange((cl_int)(matrix_order*2), 1), cl::NullRange, NULL, NULL);
+				tempoFixRowFine = steady_clock::now();
+				if (operationResult != CL_SUCCESS) {
+					std::cerr << "ERROR SETTING ARGUMENT FIX ROW KERNEL" << std::endl;
+					throw operationResult;
+				}
+
+				operationResult = commandQueue.finish();
+				if (operationResult != CL_SUCCESS) {
+					std::cerr << "ERROR GETTING DEVICES" << std::endl;
+					throw operationResult;
+				}
+
+				// COLUMNS
+				operationResult = fix_column_kernel.setArg(2, i); // index colonna da fixare
+				// come dimensione globale ho usato "2 * matrix_order, matrix_order" perch� ogni kernel esegue l'operazione su tutta la matrice augmentata
+				// ogni kernel considera una colonna da sistemare, ma per ogni elemento della colonna devo fixare l'intera riga quindi eseguo operazioni su tutti gli elementi della matrice augmentata
+				operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange((cl_int)(matrix_order*2), matrix_order), cl::NullRange, NULL, NULL);
+				if (operationResult != CL_SUCCESS) {
+					std::cerr << "ERROR ROW KERNEL EXECUTION" << std::endl;
+					throw operationResult;
+				}
+
+				operationResult = commandQueue.finish();
+
+				operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
+
+				operationResult = commandQueue.finish();
+				operationResult = commandQueue.enqueueWriteBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
+
+				operationResult = commandQueue.finish();
+				if (operationResult != CL_SUCCESS) {
+					std::cerr << "ERROR GETTING DEVICES" << std::endl;
+					throw operationResult;
+				}
+			}
 
 
 
