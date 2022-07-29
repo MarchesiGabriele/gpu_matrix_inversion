@@ -35,8 +35,11 @@ void pivot_max_test(std::vector<double> matrix_vector, int matrix_order) {
 
 			if(isMax){
 				__private double2 max = (double2)(0.0, 0.0);
-				max.x = localData[localId];
-				max.y = localId*workGroupId;
+		/*		max.x = localData[localId];
+				max.y = localId*workGroupId; */
+
+				max.x = 5;
+				max.y = 1; 
 				output[workGroupId] = max;
 			}
 		})";
