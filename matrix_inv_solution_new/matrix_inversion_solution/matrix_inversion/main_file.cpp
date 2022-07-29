@@ -8,7 +8,7 @@
 
 int main(){
 	// Theoretical max is 16384
-	#define N 1024 
+	#define N 256
 	#define REP 1 
 	#define WANTWRITEFILE false 
 
@@ -53,7 +53,7 @@ int main(){
 	
 
 		//matriceIniziale = { 2,8,5,1,10,5,9,9,3 };
-		//matriceIniziale = {2,8,5,1,10,5,9,9,3};
+		//matriceIniziale = {9,8,5,1,10,5,9,9,3};
 		//matriceIniziale = {1,1,1,1,1,1,1,1,1};
 		//matriceIniziale = {1,0,0,0,0,0,0,0,1};
 /*

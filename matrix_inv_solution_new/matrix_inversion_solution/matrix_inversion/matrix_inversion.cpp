@@ -37,33 +37,36 @@
 			size_t localSize = get_local_size(0);
 			int globalId = get_global_id(0);		/* n-i elementi. va da i a n-i */
 				
-			__local double localData[256];
-			localData[localId] = matrix[globalId*size + colId];		/* 256 dati del workgroup tra cui devo trovare il max */
+			__local double2 localData2[256];
+			localData2[localId] = (double2)(matrix[globalId*size + colId], (double)(globalId));		
 
 			barrier(CLK_LOCAL_MEM_FENCE);
 			
-			__private bool isMax = true;		/* Per ciascun workitem, itero tutti i 256 valori per sapere se il valore associato al workitem è quello più grande */
 			__private int limiteLoop = 256;
 
-			if((size/2) < 256){		/* Imposto il numero loop corretto, il base all'effettivo numero work item del work group */
+			if((size/2) < 256){					/* Imposto il numero loop corretto, il base all'effettivo numero work item del work group */
 				limiteLoop = (int)(size/2);
-			}else if(workGroupId == (int)(floor((double)(size/512)))){
-				limiteLoop = (size/2)%256;
+			}else if(workGroupId == (int)(floor((double)(size/512)))){		/* NB: size = ordine*2 !!! */
+				limiteLoop = (int)((size/2)%256);
 			}
 
-			for(int i = 0; i<limiteLoop; i++){
-				if(fabs(localData[localId]) < fabs(localData[i]) || globalId < colId){		/* cerco il max solo tra i valori sotto la riga in cui sto cercando il pivot. */
-					isMax = false;
+			for(int i = 0; i < limiteLoop; i++){
+				if(fabs(localData2[localId].x) < fabs(localData2[i].x) && i*workGroupId < colId){		/* cerco il max solo tra i valori sotto la riga in cui sto cercando il pivot. */
+					localData2[localId] = (double2)(0.0,0.0);
+					break;
 				}
 			}
-			barrier(CLK_LOCAL_MEM_FENCE);
+
+			barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 			
-			/* TODO: capire nel caso io abbia più valori uguali pari al max dentro un workgroup cosa succede !!! */
-			if(isMax){
-				__private double2 max = (double2)(0.0, 0.0);
-				max.x = localData[localId];
-				max.y = globalId; 
-				output[workGroupId] = max;
+			if(localId == 0){
+				for(int i = 0; i < limiteLoop; i++){
+					if(localData2[i].x != 0 && localData2[i].y != 0){
+						output[workGroupId] = localData2[i];
+						return;
+					}
+				}
+				output[workGroupId] = (double2)((double)(limiteLoop),0.0);
 			}
 		})";
 
@@ -566,7 +569,7 @@
 				steady_clock::time_point pivotMaxFine = steady_clock::now();
 				pivotComputeTime +=  duration_cast<duration<float>> (pivotMaxFine- pivotMaxInizio);
 			
-//				std::cout << "INDEX MAX: " << max_pivots[indexMax].y << ", PIVOT MAX: " << pivotMax << std::endl;
+				std::cout << "INDEX MAX: " << max_pivots[indexMax].y << ", PIVOT MAX: " << pivotMax  << ", index: " << i << std::endl;
 
 
 				if (pivotMax == 0) {
