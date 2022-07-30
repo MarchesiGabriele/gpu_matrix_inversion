@@ -51,7 +51,7 @@
 			}
 
 			for(int i = 0; i < limiteLoop; i++){
-				if(fabs(localData2[localId].x) < fabs(localData2[i].x) && i*workGroupId < colId){		/* cerco il max solo tra i valori sotto la riga in cui sto cercando il pivot. */
+				if((fabs(localData2[localId].x) < fabs(localData2[i].x) && globalId >= colId) || (globalId) < colId){		/* cerco il max solo tra i valori sotto la riga in cui sto cercando il pivot. */
 					localData2[localId] = (double2)(0.0,0.0);
 					break;
 				}
@@ -61,12 +61,12 @@
 			
 			if(localId == 0){
 				for(int i = 0; i < limiteLoop; i++){
-					if(localData2[i].x != 0 && localData2[i].y != 0){
+					if(localData2[i].x != 0.0 && localData2[i].y != 0.0){
 						output[workGroupId] = localData2[i];
 						return;
 					}
 				}
-				output[workGroupId] = (double2)((double)(limiteLoop),0.0);
+				output[workGroupId] = (double2)(0.0, 0.0);
 			}
 		})";
 
@@ -569,7 +569,7 @@
 				steady_clock::time_point pivotMaxFine = steady_clock::now();
 				pivotComputeTime +=  duration_cast<duration<float>> (pivotMaxFine- pivotMaxInizio);
 			
-				std::cout << "INDEX MAX: " << max_pivots[indexMax].y << ", PIVOT MAX: " << pivotMax  << ", index: " << i << std::endl;
+		//		std::cout << "INDEX MAX: " << max_pivots[indexMax].y << ", PIVOT MAX: " << pivotMax  << ", index: " << i << std::endl;
 
 
 				if (pivotMax == 0) {
@@ -678,10 +678,33 @@
 				columnTime +=  duration_cast<duration<float>> (colFine - colInizio);
 	
 				operationResult = commandQueue.finish();
-
-
-
 			}
+
+/*				/// READ 
+				std::cout << "\n\n";
+				//if (((matrix_order - 1) % 2) == 0)
+				if (((matrix_order - 1) % 2) == 0)
+					operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), m.data(), NULL);
+				else
+					operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), m.data(), NULL);
+
+				if (operationResult != CL_SUCCESS) {
+					std::cerr << "ERROR MAX PIVOT KERNEL" << std::endl;
+					throw operationResult;
+				}
+				for (int i = 0; i < m.size(); i++) {
+					if (i != 0 && (i % (matrix_order * 2)) == 0) {
+						std::cout << "\n\n";
+					}
+					if (i != 0 && (i % (matrix_order)) == 0) {
+						std::cout << "\n\n";
+					}
+					std::cout << m[i] << ",";
+				}
+
+				std::cout << "\n\n";
+				/// END READ 
+*/
 		
 
 			std::cout << "\n\n";

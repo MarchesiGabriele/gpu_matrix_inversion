@@ -8,7 +8,7 @@
 
 int main(){
 	// Theoretical max is 16384
-	#define N 256
+	#define N 1024
 	#define REP 1 
 	#define WANTWRITEFILE false 
 
@@ -47,7 +47,8 @@ int main(){
 		readFile.close();
 */
 		for (int i = 0; i < matriceIniziale.size(); i++) {
-			matriceIniziale[i] = rand() % 10;
+			//matriceIniziale[i] = rand() % 10;
+			matriceIniziale[i] = (double)(1 / (double)(rand() % 1000 +1));
 		}
 
 	
