@@ -8,7 +8,7 @@
 
 int main(){
 	// Theoretical max is 16384
-	#define N 1024
+	#define N 8192 
 	#define REP 1 
 	#define WANTWRITEFILE false 
 
@@ -19,7 +19,7 @@ int main(){
 
 		std::vector<double> matriceIniziale = std::vector<double>(N*N);
 		for (int i = 0; i < matriceIniziale.size(); i++) {
-			matriceIniziale[i] = (double)(1 / (double)(rand() % 1000 +1));
+			matriceIniziale[i] = (double)(1 / (double)(rand() % 10 +1));
 			//matriceIniziale[i] = ((double)(rand() % 100));
 		}
 
@@ -53,7 +53,8 @@ int main(){
 
 	
 
-		//matriceIniziale = { 2,8,5,1,10,5,9,9,3 };
+		//matriceIniziale = {2,8,5,1,10,5,9,9,3 };
+		//matriceIniziale = {0.01232,0.0012,0.12,0.998,0.007,0.00542,0.01,0.00433, 0.9};
 		//matriceIniziale = {9,8,5,1,10,5,9,9,3};
 		//matriceIniziale = {1,1,1,1,1,1,1,1,1};
 		//matriceIniziale = {1,0,0,0,0,0,0,0,1};

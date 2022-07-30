@@ -51,8 +51,8 @@
 			}
 
 			for(int i = 0; i < limiteLoop; i++){
-				if((fabs(localData2[localId].x) < fabs(localData2[i].x) && globalId >= colId) || (globalId) < colId){		/* cerco il max solo tra i valori sotto la riga in cui sto cercando il pivot. */
-					localData2[localId] = (double2)(0.0,0.0);
+				if((fabs(localData2[localId].x) < fabs(localData2[i].x) && (i*workGroupId + i) >= colId) || globalId < colId){		/* cerco il max solo tra i valori sotto la riga in cui sto cercando il pivot. */
+					localData2[localId] = (double2)(0.0 , 9*1e20);
 					break;
 				}
 			}
@@ -61,7 +61,7 @@
 			
 			if(localId == 0){
 				for(int i = 0; i < limiteLoop; i++){
-					if(localData2[i].x != 0.0 && localData2[i].y != 0.0){
+					if(localData2[i].y != (9.0*1e20)){
 						output[workGroupId] = localData2[i];
 						return;
 					}
@@ -569,12 +569,12 @@
 				steady_clock::time_point pivotMaxFine = steady_clock::now();
 				pivotComputeTime +=  duration_cast<duration<float>> (pivotMaxFine- pivotMaxInizio);
 			
-		//		std::cout << "INDEX MAX: " << max_pivots[indexMax].y << ", PIVOT MAX: " << pivotMax  << ", index: " << i << std::endl;
+//				std::cout << "INDEX MAX: " << max_pivots[indexMax].y << ", PIVOT MAX: " << pivotMax  << ", index: " << i << std::endl;
 
 
 				if (pivotMax == 0) {
 					std::cout << "PIVOT INVALIDO: " << pivotMax << std::endl;
-					throw;
+					//throw;
 				}
 
 /*
