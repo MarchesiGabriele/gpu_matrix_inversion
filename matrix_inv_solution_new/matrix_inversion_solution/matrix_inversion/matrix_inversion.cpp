@@ -513,27 +513,7 @@
 
 			for (int i = 0; i < matrix_order; i++) { 
 				bool flag = (i % 2) == 0;
-/*				// READ
-				std::cout << "\n\n";
-				if (!flag)
-					operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), m.data(), NULL);
-				else
-					operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), m.data(), NULL);
 
-				if (operationResult != CL_SUCCESS) {
-					std::cerr << "ERROR MAX PIVOT KERNEL" << std::endl;
-					throw operationResult;
-				}
-				for (int i = 0; i < m.size(); i++) {
-					if (i != 0 && (i % (matrix_order * 2)) == 0) {
-						std::cout << std::endl;
-					}
-					std::cout << m[i] << "\t\t";
-				}
-
-				std::cout << "\n\n";
-				// END READ
-*/
 				// MAX PIVOT 
 				steady_clock::time_point pivotMaxInizio = steady_clock::now();
 				if(flag)
@@ -558,9 +538,7 @@
 				cl_int indexMax = 0;
 				cl_double pivotMax = 0.0;
 
-//				std::cout << "VEC SIZE: " << max_pivots.size() << std::endl;
 				for (int k = 0; k < max_pivots.size(); k++) {
-//					std::cout << "INDEX: " << max_pivots[k].y << ", PIVOT: " << max_pivots[k].x << std::endl;
 					if (abs(max_pivots[k].x) >= abs(max_pivots[indexMax].x)) {
 						indexMax = k;
 						pivotMax = max_pivots[k].x;
@@ -569,7 +547,6 @@
 				steady_clock::time_point pivotMaxFine = steady_clock::now();
 				pivotComputeTime +=  duration_cast<duration<float>> (pivotMaxFine- pivotMaxInizio);
 			
-//				std::cout << "INDEX MAX: " << max_pivots[indexMax].y << ", PIVOT MAX: " << pivotMax  << ", index: " << i << std::endl;
 
 
 				if (pivotMax == 0) {
@@ -577,34 +554,6 @@
 					//throw;
 				}
 
-/*
-				//TEST
-				steady_clock::time_point readInizio= steady_clock::now();
-				//operationResult = commandQueue.enqueueReadBuffer(buffers[3], CL_TRUE, 0, 100 * sizeof(cl_double), testVector.data(), NULL);
-				steady_clock::time_point readFine= steady_clock::now();
-				readWriteTime +=  duration_cast<duration<float>> (readFine - readInizio);
-				// END TEST
-
-				if (flag) 
-					operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
-				else 
-					operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
-
-				cl_int rigaMax= i;
-				cl_double pivotMax = 0.0;
-				for (int k = i; k < matrix_order; k++) {
-					if (abs(matrice_augmentata[k * matrix_order * 2 +i]) >= abs(matrice_augmentata[rigaMax * matrix_order * 2 + i])) {
-						rigaMax = k;
-					}
-				}
-				pivotMax = matrice_augmentata[rigaMax * matrix_order * 2 + i];
-				if (pivotMax == 0) {
-					std::cout << "PIVOT INVALIDO: " << pivotMax << std::endl;
-					throw;
-				}
-				steady_clock::time_point pivotMaxFine = steady_clock::now();
-				pivotComputeTime +=  duration_cast<duration<float>> (pivotMaxFine- pivotMaxInizio);
-*/
 
 				// PIVOT
 				if ((int)max_pivots[indexMax].y != i) {
@@ -626,29 +575,7 @@
 					pivotTime +=  duration_cast<duration<float>> (pivotFine- pivotInizio);
 					commandQueue.finish();
 				}
-/*
-				// READ
-				std::cout << "\n\n";
-				//if (((matrix_order - 1) % 2) == 0)
-				if (!flag)
-					operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), m.data(), NULL);
-				else
-					operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), m.data(), NULL);
 
-				if (operationResult != CL_SUCCESS) {
-					std::cerr << "ERROR MAX PIVOT KERNEL" << std::endl;
-					throw operationResult;
-				}
-				for (int i = 0; i < m.size(); i++) {
-					if (i != 0 && (i % (matrix_order * 2)) == 0) {
-						std::cout << std::endl;
-					}
-					std::cout << m[i] << "\t\t";
-				}
-
-				std::cout << "\n\n";
-				// END READ
-*/
 				// ROWS
 				if (flag) 
 					operationResult = fix_row_kernel.setArg(0, buffers[0]); 
@@ -679,33 +606,8 @@
 	
 				operationResult = commandQueue.finish();
 			}
+			steady_clock::time_point tempoComputazioneFine = steady_clock::now();
 
-/*				/// READ 
-				std::cout << "\n\n";
-				//if (((matrix_order - 1) % 2) == 0)
-				if (((matrix_order - 1) % 2) == 0)
-					operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), m.data(), NULL);
-				else
-					operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), m.data(), NULL);
-
-				if (operationResult != CL_SUCCESS) {
-					std::cerr << "ERROR MAX PIVOT KERNEL" << std::endl;
-					throw operationResult;
-				}
-				for (int i = 0; i < m.size(); i++) {
-					if (i != 0 && (i % (matrix_order * 2)) == 0) {
-						std::cout << "\n\n";
-					}
-					if (i != 0 && (i % (matrix_order)) == 0) {
-						std::cout << "\n\n";
-					}
-					std::cout << m[i] << ",";
-				}
-
-				std::cout << "\n\n";
-				/// END READ 
-*/
-		
 
 			std::cout << "\n\n";
 			std::cout << "TEMPO COMPUTE PIVOT: " << pivotComputeTime.count() << " s" << std::endl;
@@ -734,7 +636,6 @@
 				throw operationResult;
 			}
 
-			steady_clock::time_point tempoComputazioneFine = steady_clock::now();
 			duration<float> tempoComputazioneGPU = duration_cast<duration<float>> (tempoComputazioneFine - tempoComputazioneInizio);
 	
 			duration<float> tot = pivotComputeTime + pivotTime + rowTime + columnTime + readWriteTime;
