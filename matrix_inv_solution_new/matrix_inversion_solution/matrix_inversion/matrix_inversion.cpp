@@ -494,8 +494,7 @@
 
 			// MAX PIVOT
 			operationResult = max_pivot_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
-			operationResult = max_pivot_kernel.setArg(3, buffers[3] ); // larghezza matrice augmentata
-
+			operationResult = max_pivot_kernel.setArg(3, buffers[3]); // larghezza matrice augmentata
 			// PIVOT 
 			operationResult = pivot_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
 			// ROWS
@@ -515,7 +514,6 @@
 				bool flag = (i % 2) == 0;
 
 				// MAX PIVOT 
-				steady_clock::time_point pivotMaxInizio = steady_clock::now();
 				if(flag)
 					operationResult = max_pivot_kernel.setArg(0, buffers[0]);
 				else 
@@ -528,6 +526,7 @@
 					throw operationResult;
 				}
 
+				steady_clock::time_point pivotMaxInizio = steady_clock::now();
 				operationResult = commandQueue.enqueueReadBuffer(buffers[3], CL_TRUE, 0, numeroWorkgroups * sizeof(cl_double2), max_pivots.data(), NULL);
 				if (operationResult != CL_SUCCESS) {
 					std::cerr << "ERROR READ MAX PIVOT BUFFER" << std::endl;
@@ -551,18 +550,18 @@
 
 				if (pivotMax == 0) {
 					std::cout << "PIVOT INVALIDO: " << pivotMax << std::endl;
-					//throw;
+					return {};
 				}
 
 
 				// PIVOT
+				steady_clock::time_point pivotInizio = steady_clock::now();
 				if ((int)max_pivots[indexMax].y != i) {
 					if(flag)
 						operationResult = pivot_kernel.setArg(0, buffers[0]);
 					else 
 						operationResult = pivot_kernel.setArg(0, buffers[2]);
 
-					steady_clock::time_point pivotInizio = steady_clock::now();
 					operationResult = pivot_kernel.setArg(2, i); // index riga su cui fare il pivot 
 					operationResult = pivot_kernel.setArg(3, (int)max_pivots[indexMax].y); 
 					operationResult = commandQueue.enqueueNDRangeKernel(pivot_kernel, cl::NullRange, cl::NDRange(matrix_order*2), cl::NDRange(256), NULL, NULL);
@@ -573,16 +572,15 @@
 
 					steady_clock::time_point pivotFine = steady_clock::now();
 					pivotTime +=  duration_cast<duration<float>> (pivotFine- pivotInizio);
-					commandQueue.finish();
 				}
 
 				// ROWS
+				steady_clock::time_point rowInizio = steady_clock::now();
 				if (flag) 
 					operationResult = fix_row_kernel.setArg(0, buffers[0]); 
 				else 
 					operationResult = fix_row_kernel.setArg(0, buffers[2]); 
 
-				steady_clock::time_point rowInizio = steady_clock::now();
 				operationResult = fix_row_kernel.setArg(2, i); // index riga da fixare
 				operationResult = fix_row_kernel.setArg(3, pivotMax); // index riga da fixare
 				operationResult = commandQueue.enqueueNDRangeKernel(fix_row_kernel, cl::NullRange, cl::NDRange(matrix_order*2), cl::NDRange(256), NULL, NULL);
@@ -590,6 +588,7 @@
 				rowTime +=  duration_cast<duration<float>> (rowFine - rowInizio);
 
 				// COLUMNS
+				steady_clock::time_point colInizio = steady_clock::now();
 				if (flag) {
 					operationResult = fix_column_kernel.setArg(0, buffers[0]); // read
 					operationResult = fix_column_kernel.setArg(3, buffers[2]); // write
@@ -598,14 +597,13 @@
 					operationResult = fix_column_kernel.setArg(0, buffers[2]); // read 
 					operationResult = fix_column_kernel.setArg(3, buffers[0]); // write
 				}
-				steady_clock::time_point colInizio = steady_clock::now();
 				operationResult = fix_column_kernel.setArg(2, i); // index colonna da fixare
 				operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange((cl_int)(matrix_order*2), matrix_order), cl::NullRange, NULL, NULL);
 				steady_clock::time_point colFine= steady_clock::now();
 				columnTime +=  duration_cast<duration<float>> (colFine - colInizio);
 	
-				operationResult = commandQueue.finish();
 			}
+			
 			steady_clock::time_point tempoComputazioneFine = steady_clock::now();
 
 
