@@ -14,18 +14,23 @@
 		const std::string fixColumnKernelString = R"(
 		#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 		__kernel void fixColumnKernel(__global double *matrix, int size, int colIdx, __global double *output){
-			int j = get_global_id(0);
-			int i = get_global_id(1);
+			size_t globalId = get_global_id(0);
+			size_t globalId2 = get_global_id(1);
+			size_t localId = get_local_id(0);
 
+			__local double currentRow[256];
+			__local double otherRow[256];
 			__local double AiIdx;
 
-			AiIdx = matrix[i*size + colIdx];
-			barrier(CLK_LOCAL_MEM_FENCE);
+			currentRow[localId] = matrix[globalId2 * size + globalId];
+			otherRow[localId] = matrix[colIdx * size + globalId];
+			AiIdx = matrix[globalId2 * size + colIdx];
+			barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
-			if(matrix[i*size + colIdx] != 0 && i != colIdx){
-				output[i*size + j] = matrix[i*size + j] - (AiIdx * matrix[colIdx*size + j]);
+			if(AiIdx != 0 && globalId2 != colIdx){
+				output[globalId2*size + globalId] = currentRow[localId] - (AiIdx * otherRow[localId]);
 			}else{
-				output[i*size + j] = matrix[i*size + j];
+				output[globalId2*size + globalId] = currentRow[localId];
 			}
 		})";
 
@@ -683,7 +688,12 @@
 					operationResult = fix_column_kernel.setArg(3, buffers[0]); // write
 				}
 				operationResult = fix_column_kernel.setArg(2, i); // index colonna da fixare
-				operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange((cl_int)(matrix_order*2), matrix_order), cl::NullRange, NULL, NULL);
+				operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange(matrix_order*2, matrix_order), cl::NDRange(256, 1), NULL, NULL);
+				if (operationResult != CL_SUCCESS) {
+					std::cerr << "ERROR GETTING DEVICES" << std::endl;
+					throw operationResult;
+				}
+
 
 				commandQueue.finish();
 				steady_clock::time_point colFine= steady_clock::now();
@@ -708,7 +718,6 @@
 				throw operationResult;
 			}
 
-/*
 			// TODO: TENERE QUESTO READ BUFFER PERCHé SERVER PER IL CONTROLLO DELLA MATRICE IDENTITA
 			if (((matrix_order - 1) % 2) == 0)
 				operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), m.data(), NULL);
@@ -720,7 +729,7 @@
 				std::cerr << "ERROR GETTING DEVICES" << std::endl;
 				throw operationResult;
 			}
-*/
+
 			duration<float> tempoComputazioneGPU = duration_cast<duration<float>> (tempoComputazioneFine - tempoComputazioneInizio);
 	
 			duration<float> tot = pivotComputeTime + pivotTime + rowTime + columnTime + readWriteTime;
@@ -790,7 +799,7 @@
 			duration<float> tempoTotale = duration_cast<duration<float>> (tempoTotaleFine - tempoTotaleInizio);
 			std::cout << "Tempo Totale Impiegato: " << tempoTotale.count() << " seconds" <<  std::endl;
 			std::cout << "Tempo Computazione: " << tempoComputazioneGPU.count() << " seconds" <<std::endl;
-/*
+
 			// CONTROLLO CHE MATRICE AUGMENTATA ABBIA MATRICE IDENTITYA A SINISTRA
 			int row = 0; 
 			for (int i = 0; i < m.size(); i++) {
@@ -813,7 +822,7 @@
 					}
 				}
 			}
-*/
+
 			std::cout << " \n\nNESSUN ERRORE CON CONTROLLO MATRICE IDENTITA DELLA MATRICE AUGMENATA \n\n"; 
 
 			buffers.clear();
