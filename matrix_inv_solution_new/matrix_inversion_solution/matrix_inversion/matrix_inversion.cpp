@@ -70,19 +70,47 @@
 			}
 		})";
 
+		// La dimensione globale è: numeroWorkGroups.	
+		const std::string finalMaxPivotKernelString = R"(
+		#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+		__kernel void finalMaxPivotKernel(__global double2 *values){
+			size_t globalId = get_global_id(0);		
+			size_t size = get_global_size(0);		
+
+			__local double2 vector[1000];
+			vector[globalId] = values[globalId];
+
+			barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+		
+			if(globalId == 0){
+				__private double2 max = (double2)(0.0,0.0);
+				for(int i = 0; i<size; i++){
+					if(fabs(vector[i].x) > fabs(max.x)){
+						max.x = vector[i].x;
+						max.y = vector[i].y;
+					}
+				}
+				values[0].x = max.x;
+				values[0].y = max.y;
+			}
+		})";
+
 
 
 
 		const std::string fixRowKernelString = R"(
 		#pragma OPENCL EXTENSION cl_khr_fp64 : enable
-		__kernel void fixRowKernel(__global double *matrix, int size, int rowId, double Aii){
+		__kernel void fixRowKernel(__global double *matrix, int size, int rowId, __global double2 *pivot){
 			size_t localId = get_local_id(0);
 			size_t globalId = get_global_id(0);		
 
 			__local double row[256];
+			__local double Aii;
 
 			row[localId] = matrix[size*rowId + globalId];
-			barrier(CLK_LOCAL_MEM_FENCE); 
+			Aii = pivot[0].x;
+			
+			barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE); 
 
 			matrix[size*rowId + globalId] = row[localId]/Aii;
 		})";
@@ -91,21 +119,25 @@
 		// Max row è l'id della riga che deve eseguire lo swap con rowId
 		const std::string pivotKernelString = R"(
 		#pragma OPENCL EXTENSION cl_khr_fp64 : enable
-		__kernel void pivotElementsKernel(__global double *matrix, int size, int rowId, int maxRow){
+		__kernel void pivotElementsKernel(__global double *matrix, int size, int rowId, __global double2 *pivot){
 			size_t globalId = get_global_id(0);
 			size_t localId = get_local_id(0);
 
 			__local double localDataOld[256];
 			__local double localDataMax[256];
+			__local int maxRow;
+		
+			maxRow = (int)(pivot[0].y);
+			barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE); 
 
 			localDataOld[localId] = matrix[size*rowId + globalId];
 			localDataMax[localId] = matrix[size*maxRow + globalId];
 			barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE); 
 
-			matrix[size*rowId + globalId] = localDataMax[localId];
-			matrix[size*maxRow + globalId] = localDataOld[localId];
-
-
+			if(maxRow != rowId){
+				matrix[size*rowId + globalId] = localDataMax[localId];
+				matrix[size*maxRow + globalId] = localDataOld[localId];
+			}
 		})";
 
 		// Con matrixOrder si indende l'ordine della matrice iniziale, non la larghezza della matrice augmentata!!
@@ -294,7 +326,9 @@
 			// Creo buffer per matrice input
 			std::cout << matrice_input.size() << std::endl;
 			buffers.push_back(cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, matrice_input.size() * sizeof(cl_double), matrice_input.data(), &operationResult));
-	
+			
+			// Buffer per i max pivot parziali trovati per ciascun workgruop dal kernel MaxPivot.
+			// Questo buffer viene poi usato dal kernel finalMaxPivot, per mettere in prima posizione nel buffer il max pivot assoluto ed il suo index.
 			buffers.push_back(cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,  matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), &operationResult));
 			
 			// Buffer per max pivots (dei workgroups)	
@@ -332,7 +366,13 @@
 				std::cerr << "ERROR CREATING PROGRAM FIX COLUMNS" << std::endl;
 				throw operationResult;
 			}
-			
+
+			cl::Program final_max_pivot_program(context, cl::Program::Sources(1, std::make_pair(finalMaxPivotKernelString.c_str(), finalMaxPivotKernelString.length() + 1)), &operationResult);
+			if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR CREATING FINAL MAX PIVOT PROGRAM" << std::endl;
+				throw operationResult;
+			}
+
 			// Questo programma viene creato e compilato una sola volta, poi viene utilizzato per creare due kernel diversi. Quello per creare la matrice augmentata
 			// e quello per estrarre la matrice inversa dalla matrice augmentata.
 			cl::Program matrix_program(context, cl::Program::Sources(1, std::make_pair(matrixKernelString.c_str(), matrixKernelString.length() + 1)), &operationResult);
@@ -381,6 +421,17 @@
 			}
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR BUILDING PROGRAM MAX PIVOT" << std::endl;
+				throw operationResult;
+			}
+
+			operationResult = final_max_pivot_program.build(devices);
+			if (operationResult == CL_BUILD_PROGRAM_FAILURE) {
+				std::string err;
+				fix_column_program.getBuildInfo(chosenDevice, CL_PROGRAM_BUILD_LOG, &err);
+				std::cout << err;
+			}
+			if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR BUILDING PROGRAM FINAL MAX PIVOT" << std::endl;
 				throw operationResult;
 			}
 
@@ -435,6 +486,12 @@
 			cl::Kernel max_pivot_kernel(max_pivot_program, "maxPivotKernel", &operationResult);
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR CREATING MAX PIVOT KERNEL" << std::endl;
+				throw operationResult;
+			}
+
+			cl::Kernel final_max_pivot_kernel(final_max_pivot_program, "finalMaxPivotKernel", &operationResult);
+			if (operationResult != CL_SUCCESS) {
+				std::cerr << "ERROR CREATING FINAL MAX PIVOT KERNEL" << std::endl;
 				throw operationResult;
 			}
 
@@ -494,11 +551,15 @@
 
 			// MAX PIVOT
 			operationResult = max_pivot_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
-			operationResult = max_pivot_kernel.setArg(3, buffers[3]); // larghezza matrice augmentata
+			operationResult = max_pivot_kernel.setArg(3, buffers[3]); 
+			// FINAL MAX PIVOT
+			operationResult = final_max_pivot_kernel.setArg(0, buffers[3]); 
 			// PIVOT 
 			operationResult = pivot_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
+			operationResult = pivot_kernel.setArg(3, buffers[3]); 
 			// ROWS
 			operationResult = fix_row_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
+			operationResult = fix_row_kernel.setArg(3, buffers[3]); 
 			// COLUMNS
 			operationResult = fix_column_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
 
@@ -526,53 +587,55 @@
 					throw operationResult;
 				}
 
-				steady_clock::time_point pivotMaxInizio = steady_clock::now();
+/*
 				operationResult = commandQueue.enqueueReadBuffer(buffers[3], CL_TRUE, 0, numeroWorkgroups * sizeof(cl_double2), max_pivots.data(), NULL);
+				for (int k = 0; k < max_pivots.size(); k++) {
+					std::cout << "PIVOTS: " << max_pivots[k].x << " ";
+				}
+				std::cout << "\n\n";
+	*/			
+				operationResult = commandQueue.enqueueNDRangeKernel(final_max_pivot_kernel, cl::NullRange, cl::NDRange(numeroWorkgroups), cl::NullRange, NULL, NULL);
 				if (operationResult != CL_SUCCESS) {
-					std::cerr << "ERROR READ MAX PIVOT BUFFER" << std::endl;
+					std::cerr << "ERROR FINAL MAX PIVOT KERNEL" << std::endl;
+					throw operationResult;
+				}
+/*
+				operationResult = commandQueue.enqueueReadBuffer(buffers[3], CL_TRUE, 0, numeroWorkgroups * sizeof(cl_double2), max_pivots.data(), NULL);
+
+				std::cout << "PIVOT MAX: " << max_pivots[0].x << " , INDEX: " << max_pivots[0].y << std::endl;
+*/
+
+		
+				// PIVOT
+				steady_clock::time_point pivotInizio = steady_clock::now();
+				if(flag)
+					operationResult = pivot_kernel.setArg(0, buffers[0]);
+				else 
+					operationResult = pivot_kernel.setArg(0, buffers[2]);
+
+				operationResult = pivot_kernel.setArg(2, i); // index riga su cui fare il pivot 
+				operationResult = commandQueue.enqueueNDRangeKernel(pivot_kernel, cl::NullRange, cl::NDRange(matrix_order*2), cl::NDRange(256), NULL, NULL);
+				if (operationResult != CL_SUCCESS) {
+					std::cerr << "ERROR PIVOT KERNEL" << std::endl;
 					throw operationResult;
 				}
 
-				// Questo index indica il max, dentro il vettore di massimi prodotto dal kernel maxPivots!! Non indica la posizione del max nella matrice augmentata!!
-				cl_int indexMax = 0;
-				cl_double pivotMax = 0.0;
-
-				for (int k = 0; k < max_pivots.size(); k++) {
-					if (abs(max_pivots[k].x) >= abs(max_pivots[indexMax].x)) {
-						indexMax = k;
-						pivotMax = max_pivots[k].x;
-					}
+/*
+				if(flag)
+					operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
+				else 
+					operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
+				for (int k = 0; k < matrice_augmentata.size(); k++) {
+					if (k != 0 && k % (matrix_order * 2) == 0)
+						std::cout << std::endl;
+					std::cout << matrice_augmentata[k] << " ";
 				}
-				steady_clock::time_point pivotMaxFine = steady_clock::now();
-				pivotComputeTime +=  duration_cast<duration<float>> (pivotMaxFine- pivotMaxInizio);
-			
+				std::cout << "\n\n";
+*/
 
 
-				if (pivotMax == 0) {
-					std::cout << "PIVOT INVALIDO: " << pivotMax << std::endl;
-					return {};
-				}
-
-
-				// PIVOT
-				steady_clock::time_point pivotInizio = steady_clock::now();
-				if ((int)max_pivots[indexMax].y != i) {
-					if(flag)
-						operationResult = pivot_kernel.setArg(0, buffers[0]);
-					else 
-						operationResult = pivot_kernel.setArg(0, buffers[2]);
-
-					operationResult = pivot_kernel.setArg(2, i); // index riga su cui fare il pivot 
-					operationResult = pivot_kernel.setArg(3, (int)max_pivots[indexMax].y); 
-					operationResult = commandQueue.enqueueNDRangeKernel(pivot_kernel, cl::NullRange, cl::NDRange(matrix_order*2), cl::NDRange(256), NULL, NULL);
-					if (operationResult != CL_SUCCESS) {
-						std::cerr << "ERROR PIVOT KERNEL" << std::endl;
-						throw operationResult;
-					}
-
-					steady_clock::time_point pivotFine = steady_clock::now();
-					pivotTime +=  duration_cast<duration<float>> (pivotFine- pivotInizio);
-				}
+				steady_clock::time_point pivotFine = steady_clock::now();
+				pivotTime +=  duration_cast<duration<float>> (pivotFine- pivotInizio);
 
 				// ROWS
 				steady_clock::time_point rowInizio = steady_clock::now();
@@ -582,11 +645,28 @@
 					operationResult = fix_row_kernel.setArg(0, buffers[2]); 
 
 				operationResult = fix_row_kernel.setArg(2, i); // index riga da fixare
-				operationResult = fix_row_kernel.setArg(3, pivotMax); // index riga da fixare
+				//operationResult = fix_row_kernel.setArg(3, pivotMax); // index riga da fixare
 				operationResult = commandQueue.enqueueNDRangeKernel(fix_row_kernel, cl::NullRange, cl::NDRange(matrix_order*2), cl::NDRange(256), NULL, NULL);
+				if (operationResult != CL_SUCCESS) {
+					std::cerr << "ERROR KERNEL ROW" << std::endl;
+					throw operationResult;
+				}
+
 				steady_clock::time_point rowFine = steady_clock::now();
 				rowTime +=  duration_cast<duration<float>> (rowFine - rowInizio);
+/*
+				if(flag)
+					operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
+				else 
+					operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
 
+				for (int k = 0; k < matrice_augmentata.size(); k++) {
+					if (k != 0 && k % (matrix_order * 2) == 0)
+						std::cout << std::endl;
+					std::cout << matrice_augmentata[k] << " ";
+				}
+				std::cout << "\n\n";
+*/
 				// COLUMNS
 				steady_clock::time_point colInizio = steady_clock::now();
 				if (flag) {
