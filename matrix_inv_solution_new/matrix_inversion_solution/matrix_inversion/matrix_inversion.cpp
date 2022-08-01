@@ -575,6 +575,7 @@
 				bool flag = (i % 2) == 0;
 
 				// MAX PIVOT 
+				steady_clock::time_point pivotInizio = steady_clock::now();
 				if(flag)
 					operationResult = max_pivot_kernel.setArg(0, buffers[0]);
 				else 
@@ -593,12 +594,15 @@
 					std::cout << "PIVOTS: " << max_pivots[k].x << " ";
 				}
 				std::cout << "\n\n";
-	*/			
+	*/		
+
+				// FINAL MAX PIVOT
 				operationResult = commandQueue.enqueueNDRangeKernel(final_max_pivot_kernel, cl::NullRange, cl::NDRange(numeroWorkgroups), cl::NullRange, NULL, NULL);
 				if (operationResult != CL_SUCCESS) {
 					std::cerr << "ERROR FINAL MAX PIVOT KERNEL" << std::endl;
 					throw operationResult;
 				}
+
 /*
 				operationResult = commandQueue.enqueueReadBuffer(buffers[3], CL_TRUE, 0, numeroWorkgroups * sizeof(cl_double2), max_pivots.data(), NULL);
 
@@ -607,7 +611,6 @@
 
 		
 				// PIVOT
-				steady_clock::time_point pivotInizio = steady_clock::now();
 				if(flag)
 					operationResult = pivot_kernel.setArg(0, buffers[0]);
 				else 
@@ -634,6 +637,7 @@
 */
 
 
+				commandQueue.finish();
 				steady_clock::time_point pivotFine = steady_clock::now();
 				pivotTime +=  duration_cast<duration<float>> (pivotFine- pivotInizio);
 
@@ -652,6 +656,7 @@
 					throw operationResult;
 				}
 
+				commandQueue.finish();
 				steady_clock::time_point rowFine = steady_clock::now();
 				rowTime +=  duration_cast<duration<float>> (rowFine - rowInizio);
 /*
@@ -679,11 +684,14 @@
 				}
 				operationResult = fix_column_kernel.setArg(2, i); // index colonna da fixare
 				operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange((cl_int)(matrix_order*2), matrix_order), cl::NullRange, NULL, NULL);
+
+				commandQueue.finish();
 				steady_clock::time_point colFine= steady_clock::now();
 				columnTime +=  duration_cast<duration<float>> (colFine - colInizio);
 	
 			}
 			
+			operationResult = commandQueue.finish();
 			steady_clock::time_point tempoComputazioneFine = steady_clock::now();
 
 
@@ -695,13 +703,12 @@
 			std::cout << "TEMPO READ WRITE: " << readWriteTime.count() << " s" << std::endl;
 			std::cout << "\n\n";
 
-			operationResult = commandQueue.finish();
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR GETTING DEVICES" << std::endl;
 				throw operationResult;
 			}
 
-
+/*
 			// TODO: TENERE QUESTO READ BUFFER PERCHé SERVER PER IL CONTROLLO DELLA MATRICE IDENTITA
 			if (((matrix_order - 1) % 2) == 0)
 				operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), m.data(), NULL);
@@ -713,13 +720,16 @@
 				std::cerr << "ERROR GETTING DEVICES" << std::endl;
 				throw operationResult;
 			}
-
+*/
 			duration<float> tempoComputazioneGPU = duration_cast<duration<float>> (tempoComputazioneFine - tempoComputazioneInizio);
 	
 			duration<float> tot = pivotComputeTime + pivotTime + rowTime + columnTime + readWriteTime;
 			std::cout << "ERRORE TIME: " << (tempoComputazioneGPU - tot).count() << std::endl;
 			
+			steady_clock::time_point tempoRimInizio= steady_clock::now();
+
 			// GET INVERTED MATRIX 
+			steady_clock::time_point getInvertedInizio= steady_clock::now();
 			if(((matrix_order - 1) % 2) == 0)
 				operationResult = get_inverted_matrix_kernel.setArg(0, buffers[2]);
 			else	
@@ -740,6 +750,9 @@
 					throw operationResult;
 			}
 
+			steady_clock::time_point getInvertedFine= steady_clock::now();
+			duration<float> tempoGetInverted = duration_cast<duration<float>> (getInvertedFine- getInvertedInizio);
+			std::cout << "TEMPO GET INVERTED: " << tempoGetInverted.count() << std::endl;
 			operationResult = commandQueue.finish();
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR GETTING DEVICES" << std::endl;
@@ -777,7 +790,7 @@
 			duration<float> tempoTotale = duration_cast<duration<float>> (tempoTotaleFine - tempoTotaleInizio);
 			std::cout << "Tempo Totale Impiegato: " << tempoTotale.count() << " seconds" <<  std::endl;
 			std::cout << "Tempo Computazione: " << tempoComputazioneGPU.count() << " seconds" <<std::endl;
-		
+/*
 			// CONTROLLO CHE MATRICE AUGMENTATA ABBIA MATRICE IDENTITYA A SINISTRA
 			int row = 0; 
 			for (int i = 0; i < m.size(); i++) {
@@ -800,10 +813,13 @@
 					}
 				}
 			}
-
+*/
 			std::cout << " \n\nNESSUN ERRORE CON CONTROLLO MATRICE IDENTITA DELLA MATRICE AUGMENATA \n\n"; 
 
 			buffers.clear();
+			steady_clock::time_point tempoRimFine= steady_clock::now();
+			duration<float> tempoRim = duration_cast<duration<float>> (tempoRimFine- tempoRimInizio);
+			std::cout << "Tempo RIMANENTE: " << tempoRim.count() << " seconds" <<  std::endl;
 			return matriceResult;
 		}
 		catch (cl_int e) {
