@@ -11,13 +11,14 @@
 	std::vector<double> matrix_inversion(std::vector<double> matrix_vector, int matrix_order) {
 		// KERNEL PER FIXARE COLONNE
 		// NB: size deve essere pari alla larghezza della matrice augmentata
+		// CURRENT GFLOPS: 48 (with 2 FLOP per thread), THEORETICAL MAX: 496 
 		const std::string fixColumnKernelString = R"(
 		#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 		__kernel void fixColumnKernel(__global double *matrix, int size, int colIdx, __global double *output){
 			size_t globalId = get_global_id(0);
 			size_t globalId2 = get_global_id(1);
 			size_t localId = get_local_id(0);
-
+			
 			__local double currentRow[256];
 			__local double otherRow[256];
 			__local double AiIdx;
@@ -40,39 +41,72 @@
 			size_t localId = get_local_id(0);
 			int workGroupId = get_group_id(0);
 			size_t localSize = get_local_size(0);
-			int globalId = get_global_id(0);		/* n-i elementi. va da i a n-i */
-				
+			int globalId = get_global_id(0);
+
+			__private int limiteLoop = 256;
 			__local double2 localData2[256];
+
 			localData2[localId] = (double2)(matrix[globalId*size + colId], (double)(globalId));		
 
 			barrier(CLK_LOCAL_MEM_FENCE);
-			
-			__private int limiteLoop = 256;
 
-			if((size/2) < 256){					/* Imposto il numero loop corretto, il base all'effettivo numero work item del work group */
-				limiteLoop = (int)(size/2);
-			}else if(workGroupId == (int)(floor((double)(size/512)))){		/* NB: size = ordine*2 !!! */
-				limiteLoop = (int)((size/2)%256);
-			}
-
-			for(int i = 0; i < limiteLoop; i++){
-				if((fabs(localData2[localId].x) < fabs(localData2[i].x) && (i*workGroupId + i) >= colId) || globalId < colId){		/* cerco il max solo tra i valori sotto la riga in cui sto cercando il pivot. */
-					localData2[localId] = (double2)(0.0 , 9*1e20);
-					break;
+			/* Controllo se colId è superiore o meno all'intero workgroup corrente, se è superiore nessun elemento del workgroup corrente può essere il max */
+			if(colId <= (workGroupId*256 + 255)){
+				if((size/2) < 256){				
+					limiteLoop = (int)(size/2);
+				}else if(workGroupId == (int)(floor((double)(size/512)))){		/* size == ordine*2 */
+					limiteLoop = (int)((size/2)%256);
 				}
-			}
-
-			barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
-			
-			if(localId == 0){
-				for(int i = 0; i < limiteLoop; i++){
-					if(localData2[i].y != (9.0*1e20)){
-						output[workGroupId] = localData2[i];
-						return;
+					
+				/* Controllo se colId è compreso tra gli elementi del workgroup corrente oppure se è sotto, se è sotto non devo tenerne conto durante la ricerca del max */
+				if(colId >= (workGroupId*256)){
+					if((limiteLoop-(colId%256))%2 != 0){
+						localData2[limiteLoop] = (double2)(0.0,0.0);
+						limiteLoop++;
+						barrier(CLK_LOCAL_MEM_FENCE);
 					}
+				
+					for(int i = (limiteLoop-(colId%256)) >> 1; i > 0; i>>=1){
+						if((localId-(colId%256)) < i){
+							if(fabs(localData2[(localId)+i].x) > fabs(localData2[localId].x) && globalId >= colId){
+								localData2[localId] = localData2[localId+i];  
+							}	 
+						}  
+
+						barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE); 
+						if(i%2 != 0 && i != 1){
+							i++;
+						}
+					}
+					output[workGroupId] = localData2[colId%256];
+				}else{
+					if((limiteLoop)%2 != 0){
+						localData2[limiteLoop] = (double2)(0.0,0.0);
+						limiteLoop++;
+						barrier(CLK_LOCAL_MEM_FENCE);
+					}
+
+					for(int i = limiteLoop >> 1; i > 0; i>>=1){
+						if((localId) < i){
+							if(fabs(localData2[localId+i].x) > fabs(localData2[localId].x) && globalId >= colId){
+								localData2[localId] = localData2[localId+i];  
+							}	 
+						}  
+
+						barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE); 
+						if(i%2 != 0 && i != 1){
+							i++;
+						}
+					}
+					output[workGroupId] = localData2[0];
 				}
-				output[workGroupId] = (double2)(0.0, 0.0);
+			}else{
+				output[workGroupId] = (double2)(0.0, 0.0); 
 			}
+
+
+
+		
 		})";
 
 		// La dimensione globale è: numeroWorkGroups.	
@@ -184,7 +218,7 @@
 		)";
 
 		
-		//std::cout << std::setprecision(5);
+		std::cout << std::setprecision(2);
 
 		// se altezza vettore � zero ritorno vettore vuoto
 		if (matrix_order <= 0) {
@@ -579,6 +613,20 @@
 			for (int i = 0; i < matrix_order; i++) { 
 				bool flag = (i % 2) == 0;
 
+/*
+
+				if (flag)
+					operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
+				else
+					operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
+
+				for (int k = 0; k < matrice_augmentata.size(); k++) {
+					if (k != 0 && k % (matrix_order * 2) == 0)
+						std::cout << std::endl;
+					std::cout << matrice_augmentata[k] << "\t";
+				}
+				std::cout << "\n\n";
+*/
 				// MAX PIVOT 
 				steady_clock::time_point pivotInizio = steady_clock::now();
 				if(flag)
@@ -592,28 +640,24 @@
 					std::cerr << "ERROR MAX PIVOT KERNEL" << std::endl;
 					throw operationResult;
 				}
-
 /*
 				operationResult = commandQueue.enqueueReadBuffer(buffers[3], CL_TRUE, 0, numeroWorkgroups * sizeof(cl_double2), max_pivots.data(), NULL);
 				for (int k = 0; k < max_pivots.size(); k++) {
 					std::cout << "PIVOTS: " << max_pivots[k].x << " ";
 				}
 				std::cout << "\n\n";
-	*/		
-
+*/
 				// FINAL MAX PIVOT
 				operationResult = commandQueue.enqueueNDRangeKernel(final_max_pivot_kernel, cl::NullRange, cl::NDRange(numeroWorkgroups), cl::NullRange, NULL, NULL);
 				if (operationResult != CL_SUCCESS) {
 					std::cerr << "ERROR FINAL MAX PIVOT KERNEL" << std::endl;
 					throw operationResult;
 				}
-
 /*
 				operationResult = commandQueue.enqueueReadBuffer(buffers[3], CL_TRUE, 0, numeroWorkgroups * sizeof(cl_double2), max_pivots.data(), NULL);
 
 				std::cout << "PIVOT MAX: " << max_pivots[0].x << " , INDEX: " << max_pivots[0].y << std::endl;
 */
-
 		
 				// PIVOT
 				if(flag)
@@ -627,7 +671,6 @@
 					std::cerr << "ERROR PIVOT KERNEL" << std::endl;
 					throw operationResult;
 				}
-
 /*
 				if(flag)
 					operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
@@ -636,11 +679,10 @@
 				for (int k = 0; k < matrice_augmentata.size(); k++) {
 					if (k != 0 && k % (matrix_order * 2) == 0)
 						std::cout << std::endl;
-					std::cout << matrice_augmentata[k] << " ";
+					std::cout << matrice_augmentata[k] << "\t";
 				}
 				std::cout << "\n\n";
 */
-
 
 				commandQueue.finish();
 				steady_clock::time_point pivotFine = steady_clock::now();
@@ -654,7 +696,6 @@
 					operationResult = fix_row_kernel.setArg(0, buffers[2]); 
 
 				operationResult = fix_row_kernel.setArg(2, i); // index riga da fixare
-				//operationResult = fix_row_kernel.setArg(3, pivotMax); // index riga da fixare
 				operationResult = commandQueue.enqueueNDRangeKernel(fix_row_kernel, cl::NullRange, cl::NDRange(matrix_order*2), cl::NDRange(256), NULL, NULL);
 				if (operationResult != CL_SUCCESS) {
 					std::cerr << "ERROR KERNEL ROW" << std::endl;
@@ -690,7 +731,7 @@
 				operationResult = fix_column_kernel.setArg(2, i); // index colonna da fixare
 				operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange(matrix_order*2, matrix_order), cl::NDRange(256, 1), NULL, NULL);
 				if (operationResult != CL_SUCCESS) {
-					std::cerr << "ERROR GETTING DEVICES" << std::endl;
+					std::cerr << "ERROR FIX COLUMNs KERNEL" << std::endl;
 					throw operationResult;
 				}
 
