@@ -45,6 +45,7 @@
 
 			__private int limiteLoop = 256;
 			__local double2 localData2[256];
+			__private int lim = 0;
 
 			localData2[localId] = (double2)(matrix[globalId*size + colId], (double)(globalId));		
 
@@ -57,56 +58,38 @@
 				}else if(workGroupId == (int)(floor((double)(size/512)))){		/* size == ordine*2 */
 					limiteLoop = (int)((size/2)%256);
 				}
-					
+		
 				/* Controllo se colId è compreso tra gli elementi del workgroup corrente oppure se è sotto, se è sotto non devo tenerne conto durante la ricerca del max */
-				if(colId >= (workGroupId*256)){
-					if((limiteLoop-(colId%256))%2 != 0){
-						localData2[limiteLoop] = (double2)(0.0,0.0);
-						limiteLoop++;
-						barrier(CLK_LOCAL_MEM_FENCE);
-					}
-				
-					for(int i = (limiteLoop-(colId%256)) >> 1; i > 0; i>>=1){
-						if((localId-(colId%256)) < i){
-							if(fabs(localData2[(localId)+i].x) > fabs(localData2[localId].x) && globalId >= colId){
-								localData2[localId] = localData2[localId+i];  
-							}	 
-						}  
-
-						barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE); 
-						if(i%2 != 0 && i != 1){
-							i++;
-						}
-					}
-					output[workGroupId] = localData2[colId%256];
-				}else{
-					if((limiteLoop)%2 != 0){
-						localData2[limiteLoop] = (double2)(0.0,0.0);
-						limiteLoop++;
-						barrier(CLK_LOCAL_MEM_FENCE);
-					}
-
-					for(int i = limiteLoop >> 1; i > 0; i>>=1){
-						if((localId) < i){
-							if(fabs(localData2[localId+i].x) > fabs(localData2[localId].x) && globalId >= colId){
-								localData2[localId] = localData2[localId+i];  
-							}	 
-						}  
-
-						barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE); 
-						if(i%2 != 0 && i != 1){
-							i++;
-						}
-					}
-					output[workGroupId] = localData2[0];
+				if(colId >= (workGroupId*256))
+					lim = limiteLoop-(colId%256);
+				else
+					lim = limiteLoop;
+					
+				if(lim%2 != 0){
+					localData2[limiteLoop] = (double2)(0.0,0.0);
+					lim++;
+					barrier(CLK_LOCAL_MEM_FENCE);
 				}
+			
+				for(int i = lim >> 1; i > 0; i>>=1){
+					if(lim < i){
+						if(fabs(localData2[(localId)+i].x) > fabs(localData2[localId].x) && globalId >= colId){
+							localData2[localId] = localData2[localId+i];  
+						}	 
+					}  
+					barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE); 
+					if(i%2 != 0 && i != 1){
+						i++;
+					}
+				}
+
+				if(colId >= workGroupId*256)
+					output[workGroupId] = localData2[colId%256];
+				else
+					output[workGroupId] = localData2[0];
 			}else{
 				output[workGroupId] = (double2)(0.0, 0.0); 
 			}
-
-
-
-		
 		})";
 
 		// La dimensione globale è: numeroWorkGroups.	
