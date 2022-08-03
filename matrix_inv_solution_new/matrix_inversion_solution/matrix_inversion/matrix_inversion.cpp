@@ -12,6 +12,7 @@
 		// KERNEL PER FIXARE COLONNE
 		// NB: size deve essere pari alla larghezza della matrice augmentata
 		// CURRENT GFLOPS: 48 (with 2 FLOP per thread), THEORETICAL MAX: 496 
+		// NB: dato che devo eseguire la copia della matrice alla matrice output devo per forza copiare tutti i dati tutte le volte. 
 		const std::string fixColumnKernelString = R"(
 		#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 		__kernel void fixColumnKernel(__global double *matrix, int size, int colIdx, __global double *output){
@@ -29,10 +30,12 @@
 			barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
 			if(AiIdx != 0 && globalId2 != colIdx){
-				output[globalId2*size + globalId] = currentRow[localId] - (AiIdx * otherRow[localId]);
-			}else{
-				output[globalId2*size + globalId] = currentRow[localId];
+				currentRow[localId] = currentRow[localId] - (AiIdx * otherRow[localId]);
 			}
+
+			barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+
+			output[globalId2*size + globalId] = currentRow[localId];
 		})";
 
 		const std::string maxPivotKernelString = R"(
@@ -853,6 +856,7 @@
 			steady_clock::time_point tempoRimFine= steady_clock::now();
 			duration<float> tempoRim = duration_cast<duration<float>> (tempoRimFine- tempoRimInizio);
 			std::cout << "Tempo RIMANENTE: " << tempoRim.count() << " seconds" <<  std::endl;
+
 			return matriceResult;
 		}
 		catch (cl_int e) {
