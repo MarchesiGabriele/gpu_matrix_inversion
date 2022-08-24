@@ -738,6 +738,11 @@
 			std::cout << "TEMPO ROW: " << rowTime.count() << " s" << std::endl;
 			std::cout << "TEMPO COLUMN: " << columnTime.count() << " s" << std::endl;
 			std::cout << "TEMPO READ WRITE: " << readWriteTime.count() << " s" << std::endl;
+
+			std::cout << "GFLOPS ROW: " << (matrix_order*matrix_order*2)/(rowTime.count()*1e9) << std::endl;
+			std::cout << matrix_order << std::endl;
+			long ops = matrix_order * matrix_order * matrix_order * 2 * 2;
+			std::cout << "GFLOPS COLUMN: " << (matrix_order* (1e-9) * matrix_order * matrix_order *4)/columnTime.count() << std::endl;
 			std::cout << "\n\n";
 
 			if (operationResult != CL_SUCCESS) {

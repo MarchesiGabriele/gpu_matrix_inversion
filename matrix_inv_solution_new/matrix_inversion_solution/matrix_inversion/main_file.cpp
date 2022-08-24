@@ -8,7 +8,7 @@
 
 int main(){
 	// Theoretical max is 16384
-	#define N 4192 
+	#define N 4096 
 	#define REP 1 
 
 	for (int k = 0; k < REP; k++) {

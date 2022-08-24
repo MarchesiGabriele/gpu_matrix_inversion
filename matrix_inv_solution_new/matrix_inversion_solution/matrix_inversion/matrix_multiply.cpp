@@ -5,8 +5,9 @@
 #include <fstream>
 #include <vector>
 #include <iomanip>
+#include <chrono>
 #define __CL_ENABLE_EXCEPTIONS
-
+using namespace std::chrono;
 
 
 
@@ -119,6 +120,7 @@ void matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA)
 
 		// eseguo il kernel
 		//NB: NDrange sono le dimensioni globali e locali
+		steady_clock::time_point inizio = steady_clock::now();
 		result = commandQueue.enqueueNDRangeKernel(kernelMultiply, cl::NullRange, cl::NDRange((cl_int)sqrt(matriceA.size()), (cl_int)sqrt(matriceA.size())), cl::NullRange, NULL, NULL);
 
 		if (result != CL_SUCCESS) {
@@ -128,6 +130,15 @@ void matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA)
 
 			
 		result = commandQueue.finish();
+		steady_clock::time_point fine = steady_clock::now();
+
+		duration<float> time =  duration_cast<duration<float>> (fine - inizio);
+
+		std::cout << "GFLOPS MATMUL: " << (matriceA.size() * sqrt(matriceA.size()) / (time.count() * 1e9));
+
+
+
+		result = commandQueue.enqueueNDRangeKernel(kernelMultiply, cl::NullRange, cl::NDRange((cl_int)sqrt(matriceA.size()), (cl_int)sqrt(matriceA.size())), cl::NullRange, NULL, NULL);
 	if (result != CL_SUCCESS) {
 				std::cerr << "ERROR GETTING DEVICES" << std::endl;
 				throw result;
