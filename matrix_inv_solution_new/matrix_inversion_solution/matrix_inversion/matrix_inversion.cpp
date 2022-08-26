@@ -43,6 +43,7 @@
 		const std::string fixColumnKernelString = R"(
 		#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 		__kernel void fixColumnKernel(__global double *matrix, int size, int colIdx, __global double *output){
+
 			size_t globalId = get_global_id(0);
 			size_t globalId2 = get_global_id(1);
 			size_t localId = get_local_id(0);
@@ -627,6 +628,8 @@
 			cl::Event evento;
 			event.push_back(evento);
 
+			cl_ulong time_start;
+			cl_ulong time_end;
 			for (int i = 0; i < matrix_order; i++) { 
 				bool flag = (i % 2) == 0;
 
@@ -755,13 +758,9 @@
 				event[0].waitForEvents;
 				commandQueue.finish();
 		
-				cl_ulong time_start;
-				cl_ulong time_end;
-
 
 				event[0].getProfilingInfo(CL_PROFILING_COMMAND_START, &time_start);
 				event[0].getProfilingInfo(CL_PROFILING_COMMAND_END, &time_end);
-		
 				columnTime += time_end - time_start;
 
 				//steady_clock::time_point colFine= steady_clock::now();
@@ -778,7 +777,7 @@
 			std::cout << "TEMPO PIVOT: " << pivotTime.count() << " s" << std::endl;
 			std::cout << "TEMPO ROW: " << rowTime.count() << " s" << std::endl;
 			//std::cout << "TEMPO COLUMN: " << columnTime.count() << " s" << std::endl;
-			std::cout << "TEMPO COLUMN: " << columnTime/1e9 << " s" << std::endl;
+			std::cout << "TEMPO COLUMN: " << std::setprecision(5) <<  columnTime/1e9 << " s" << std::endl;
 			std::cout << "TEMPO READ WRITE: " << readWriteTime.count() << " s" << std::endl;
 			std::cout << "GFLOPS ROW: " << (matrix_order*matrix_order*2)/(rowTime.count()*1e9) << std::endl;
 			std::cout << matrix_order << std::endl;
@@ -904,6 +903,7 @@
 			steady_clock::time_point tempoRimFine= steady_clock::now();
 			duration<float> tempoRim = duration_cast<duration<float>> (tempoRimFine- tempoRimInizio);
 			std::cout << "Tempo RIMANENTE: " << tempoRim.count() << " seconds" <<  std::endl;
+
 
 			//std::cout << "DISTRUZIONE COUNTERS: " <<  (kGpaStatusOk == gpa_function_table->GpaDestroy()); 
 
