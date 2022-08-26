@@ -5,10 +5,37 @@
 #include <iomanip>
 #include <fstream>
 #include <chrono>
+#include <gpu_performance_api/gpu_perf_api_interface_loader.h>
 #define __CL_ENABLE_EXCEPTIONS
 #define A false 
 
+/*
+	GpaApiManager* GpaApiManager::gpa_api_manager_ = nullptr;
+	GpaFuncTableInfo* gpa_function_table_info = nullptr;
+	GpaFunctionTable* gpa_function_table = nullptr;
+
+
+	bool InitializeGpa(){
+		bool ret_val = false;
+
+		std::cout << "00100101" << std::endl;
+		std::cout << GpaApiManager::Instance()->LoadApi(kGpaApiOpencl) << std::endl;
+		if (kGpaStatusOk == GpaApiManager::Instance()->LoadApi(kGpaApiOpencl)){
+			gpa_function_table = GpaApiManager::Instance()->GetFunctionTable(kGpaApiOpencl);
+
+			std::cout << "0923892" << std::endl;
+			if (nullptr != gpa_function_table){
+				std::cout << "1111" << std::endl;
+				ret_val = kGpaStatusOk == gpa_function_table->GpaInitialize(kGpaInitializeDefaultBit);
+			}
+		}
+		return ret_val;
+	}
+*/
 	std::vector<double> matrix_inversion(std::vector<double> matrix_vector, int matrix_order) {
+		// INIZIALIZZO COUNTERS
+		//std::cout << InitializeGpa() << std::endl;
+
 		// KERNEL PER FIXARE COLONNE
 		// NB: size deve essere pari alla larghezza della matrice augmentata
 		// CURRENT GFLOPS: 48 (with 2 FLOP per thread), THEORETICAL MAX: 496 
@@ -337,7 +364,7 @@
 
 			// Creo la command queue per il device scelto
 			steady_clock::time_point inizioCq= steady_clock::now();
-			commandQueue = cl::CommandQueue(context, chosenDevice);			
+			commandQueue = cl::CommandQueue(context, chosenDevice, CL_QUEUE_PROFILING_ENABLE);
 			steady_clock::time_point fineCq= steady_clock::now();
 			duration<float> tempoCq= duration_cast<duration<float>> (fineCq- inizioCq);
 			std::cout << "Tempo Comman Queue: " << tempoCq.count() << " seconds" << std::endl;
@@ -592,9 +619,13 @@
 			duration<float> pivotComputeTime = duration_cast<duration<float>> (steady_clock::now() - steady_clock::now());
 			duration<float> pivotTime = duration_cast<duration<float>> (steady_clock::now() - steady_clock::now());
 			duration<float> rowTime = duration_cast<duration<float>> (steady_clock::now() - steady_clock::now());
-			duration<float> columnTime = duration_cast<duration<float>> (steady_clock::now() - steady_clock::now());
+			//duration<float> columnTime = duration_cast<duration<float>> (steady_clock::now() - steady_clock::now());
+			double columnTime = 0.0;
 			duration<float> readWriteTime = duration_cast<duration<float>> (steady_clock::now() - steady_clock::now());
 			
+			std::vector<cl::Event> event = {};
+			cl::Event evento;
+			event.push_back(evento);
 
 			for (int i = 0; i < matrix_order; i++) { 
 				bool flag = (i % 2) == 0;
@@ -705,7 +736,7 @@
 				std::cout << "\n\n";
 */
 				// COLUMNS
-				steady_clock::time_point colInizio = steady_clock::now();
+				//steady_clock::time_point colInizio = steady_clock::now();
 				if (flag) {
 					operationResult = fix_column_kernel.setArg(0, buffers[0]); // read
 					operationResult = fix_column_kernel.setArg(3, buffers[2]); // write
@@ -715,16 +746,26 @@
 					operationResult = fix_column_kernel.setArg(3, buffers[0]); // write
 				}
 				operationResult = fix_column_kernel.setArg(2, i); // index colonna da fixare
-				operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange(matrix_order*2, matrix_order), cl::NDRange(256, 1), NULL, NULL);
+				operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange(matrix_order*2, matrix_order), cl::NDRange(256, 1), NULL, &event[0]);
 				if (operationResult != CL_SUCCESS) {
 					std::cerr << "ERROR FIX COLUMNs KERNEL" << std::endl;
 					throw operationResult;
 				}
-
-
+				
+				event[0].waitForEvents;
 				commandQueue.finish();
-				steady_clock::time_point colFine= steady_clock::now();
-				columnTime +=  duration_cast<duration<float>> (colFine - colInizio);
+		
+				cl_ulong time_start;
+				cl_ulong time_end;
+
+
+				event[0].getProfilingInfo(CL_PROFILING_COMMAND_START, &time_start);
+				event[0].getProfilingInfo(CL_PROFILING_COMMAND_END, &time_end);
+		
+				columnTime += time_end - time_start;
+
+				//steady_clock::time_point colFine= steady_clock::now();
+				//columnTime +=  duration_cast<duration<float>> (colFine - colInizio);
 	
 			}
 			
@@ -736,13 +777,14 @@
 			std::cout << "TEMPO COMPUTE PIVOT: " << pivotComputeTime.count() << " s" << std::endl;
 			std::cout << "TEMPO PIVOT: " << pivotTime.count() << " s" << std::endl;
 			std::cout << "TEMPO ROW: " << rowTime.count() << " s" << std::endl;
-			std::cout << "TEMPO COLUMN: " << columnTime.count() << " s" << std::endl;
+			//std::cout << "TEMPO COLUMN: " << columnTime.count() << " s" << std::endl;
+			std::cout << "TEMPO COLUMN: " << columnTime/1e9 << " s" << std::endl;
 			std::cout << "TEMPO READ WRITE: " << readWriteTime.count() << " s" << std::endl;
-
 			std::cout << "GFLOPS ROW: " << (matrix_order*matrix_order*2)/(rowTime.count()*1e9) << std::endl;
 			std::cout << matrix_order << std::endl;
 			long ops = matrix_order * matrix_order * matrix_order * 2 * 2;
-			std::cout << "GFLOPS COLUMN: " << (matrix_order* (1e-9) * matrix_order * matrix_order *4)/columnTime.count() << std::endl;
+			//std::cout << "GFLOPS COLUMN: " << (matrix_order* (1e-9) * matrix_order * matrix_order *4)/columnTime.count() << std::endl;
+			std::cout << "GFLOPS COLUMN: " << (matrix_order* (1e-9) * matrix_order * matrix_order *4)/(columnTime/1e9) << std::endl;
 			std::cout << "\n\n";
 
 			if (operationResult != CL_SUCCESS) {
@@ -764,8 +806,9 @@
 
 			duration<float> tempoComputazioneGPU = duration_cast<duration<float>> (tempoComputazioneFine - tempoComputazioneInizio);
 	
-			duration<float> tot = pivotComputeTime + pivotTime + rowTime + columnTime + readWriteTime;
-			std::cout << "ERRORE TIME: " << (tempoComputazioneGPU - tot).count() << std::endl;
+			//duration<float> tot = pivotComputeTime + pivotTime + rowTime + columnTime + readWriteTime;
+			//duration<float> tot = pivotComputeTime + pivotTime + rowTime + columnTime + readWriteTime;
+			//std::cout << "ERRORE TIME: " << (tempoComputazioneGPU - tot).count() << std::endl;
 			
 			steady_clock::time_point tempoRimInizio= steady_clock::now();
 
@@ -861,6 +904,8 @@
 			steady_clock::time_point tempoRimFine= steady_clock::now();
 			duration<float> tempoRim = duration_cast<duration<float>> (tempoRimFine- tempoRimInizio);
 			std::cout << "Tempo RIMANENTE: " << tempoRim.count() << " seconds" <<  std::endl;
+
+			//std::cout << "DISTRUZIONE COUNTERS: " <<  (kGpaStatusOk == gpa_function_table->GpaDestroy()); 
 
 			return matriceResult;
 		}
