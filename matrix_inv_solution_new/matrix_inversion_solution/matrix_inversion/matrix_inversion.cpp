@@ -49,13 +49,11 @@
 			
 			__private double currentRowValue;
 			__private double otherRowValue;
-			__local double AiIdx;
+			__private double AiIdx;
 
 			currentRowValue = matrix[globalId2 * size + globalId];
 			otherRowValue = matrix[colIdx * size + globalId];
 			AiIdx = matrix[globalId2 * size + colIdx];
-
-			barrier(CLK_LOCAL_MEM_FENCE);
 
 			if(AiIdx != 0 && globalId2 != colIdx){
 				currentRowValue = currentRowValue - (AiIdx * otherRowValue);
@@ -152,18 +150,17 @@
 		const std::string fixRowKernelString = R"(
 		#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 		__kernel void fixRowKernel(__global double *matrix, int size, int rowId, __global double2 *pivot){
-			size_t localId = get_local_id(0);
 			size_t globalId = get_global_id(0);		
 
-			__local double row[256];
+			__private double row;
 			__local double Aii;
 
-			row[localId] = matrix[size*rowId + globalId];
+			row = matrix[size*rowId + globalId];
 			Aii = pivot[0].x;
 			
 			barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE); 
 
-			matrix[size*rowId + globalId] = row[localId]/Aii;
+			matrix[size*rowId + globalId] = row/Aii;
 		})";
 
 		// Size corrisponde alla larghezza della matrice augmentata
@@ -179,11 +176,11 @@
 			__local int maxRow;
 		
 			maxRow = (int)(pivot[0].y);
-			barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE); 
+			barrier(CLK_LOCAL_MEM_FENCE); 
 
 			localDataOld[localId] = matrix[size*rowId + globalId];
 			localDataMax[localId] = matrix[size*maxRow + globalId];
-			barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE); 
+			barrier(CLK_LOCAL_MEM_FENCE); 
 
 			if(maxRow != rowId){
 				matrix[size*rowId + globalId] = localDataMax[localId];
@@ -443,6 +440,12 @@
 				std::cerr << "ERROR CREATING PROGRAM PIVOT KERNEL" << std::endl;
 				throw operationResult;
 			}
+			
+			size_t fix_column_bin_size;
+			//unsigned char* fix_column_bin[];
+			fix_column_program.getInfo(CL_PROGRAM_BINARY_SIZES, &fix_column_bin_size);
+			fix_column_program.getInfo(CL_PROGRAM_BINARIES, &fix_column_bin_size);
+
 
 			steady_clock::time_point fineCreazioneProgrammi = steady_clock::now();
 			duration<float> tempoCreazioneProgrammi = duration_cast<duration<float>> (fineCreazioneProgrammi- inizioCreazioneProgrammi);
@@ -747,7 +750,7 @@
 					operationResult = fix_column_kernel.setArg(3, buffers[0]); // write
 				}
 				operationResult = fix_column_kernel.setArg(2, i); // index colonna da fixare
-				operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange(matrix_order*2, matrix_order), cl::NDRange(256, 1), NULL, &event[0]);
+				operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange(matrix_order * 2, matrix_order), cl::NullRange, NULL, &event[0]);
 				if (operationResult != CL_SUCCESS) {
 					std::cerr << "ERROR FIX COLUMNs KERNEL" << std::endl;
 					throw operationResult;
@@ -771,12 +774,12 @@
 
 
 			std::cout << "\n\n";
-			std::cout << "TEMPO COMPUTE PIVOT: " << pivotComputeTime.count() << " s" << std::endl;
+			//std::cout << "TEMPO COMPUTE PIVOT: " << pivotComputeTime.count() << " s" << std::endl;
 			std::cout << "TEMPO PIVOT: " << pivotTime.count() << " s" << std::endl;
 			std::cout << "TEMPO ROW: " << rowTime.count() << " s" << std::endl;
 			//std::cout << "TEMPO COLUMN: " << columnTime.count() << " s" << std::endl;
 			std::cout << "TEMPO COLUMN: " << std::setprecision(5) <<  columnTime/1e9 << " s" << std::endl;
-			std::cout << "TEMPO READ WRITE: " << readWriteTime.count() << " s" << std::endl;
+			//std::cout << "TEMPO READ WRITE: " << readWriteTime.count() << " s" << std::endl;
 			std::cout << "GFLOPS ROW: " << (matrix_order*matrix_order*2)/(rowTime.count()*1e9) << std::endl;
 			std::cout << matrix_order << std::endl;
 			long ops = matrix_order * matrix_order * matrix_order * 2 * 2;
