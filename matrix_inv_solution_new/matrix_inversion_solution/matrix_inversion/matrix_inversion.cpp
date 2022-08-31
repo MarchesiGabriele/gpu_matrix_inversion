@@ -470,7 +470,7 @@
 			operationResult = max_pivot_program.build(devices);
 			if (operationResult == CL_BUILD_PROGRAM_FAILURE) {
 				std::string err;
-				fix_column_program.getBuildInfo(chosenDevice, CL_PROGRAM_BUILD_LOG, &err);
+				max_pivot_program.getBuildInfo(chosenDevice, CL_PROGRAM_BUILD_LOG, &err);
 				std::cout << err;
 			}
 			if (operationResult != CL_SUCCESS) {
@@ -481,7 +481,7 @@
 			operationResult = final_max_pivot_program.build(devices);
 			if (operationResult == CL_BUILD_PROGRAM_FAILURE) {
 				std::string err;
-				fix_column_program.getBuildInfo(chosenDevice, CL_PROGRAM_BUILD_LOG, &err);
+				final_max_pivot_program.getBuildInfo(chosenDevice, CL_PROGRAM_BUILD_LOG, &err);
 				std::cout << err;
 			}
 			if (operationResult != CL_SUCCESS) {
@@ -496,7 +496,7 @@
 			}
 			if (operationResult == CL_BUILD_PROGRAM_FAILURE) {
 				std::string err;
-				fix_row_program.getBuildInfo(chosenDevice, CL_PROGRAM_BUILD_LOG, &err);
+				matrix_program.getBuildInfo(chosenDevice, CL_PROGRAM_BUILD_LOG, &err);
 				std::cout << err;
 			}
 

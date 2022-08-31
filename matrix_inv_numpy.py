@@ -7,9 +7,9 @@ TIMES = 1
 
 def main():
     for i in range(TIMES):
-        start = time.monotonic()
         array = np.random.uniform(0.00000000001, 0, (N,N)) 
         a = np.array(array, dtype = np.float64)
+        start = time.monotonic()
         res = inv(np.matrix(a)) 
         end = time.monotonic()
         check = np.matmul(res, a)

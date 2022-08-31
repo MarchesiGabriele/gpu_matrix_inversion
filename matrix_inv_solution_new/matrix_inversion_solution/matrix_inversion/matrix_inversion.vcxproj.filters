@@ -27,6 +27,9 @@
     <ClCompile Include="pivot_max_test.cpp">
       <Filter>File di risorse</Filter>
     </ClCompile>
+    <ClCompile Include="matrix_inversion_improved.cpp">
+      <Filter>File di risorse</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="headers.h">
