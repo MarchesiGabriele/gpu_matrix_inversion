@@ -8,7 +8,7 @@
 
 int main(){
 	// Theoretical max is 16384
-	#define N 8192 
+	#define N 4096 
 	#define REP 1 
 
 	for (int k = 0; k < REP; k++) {
@@ -45,7 +45,8 @@ int main(){
 		
 
 		// calcolo inversa
-		matriceInversa = matrix_inversion(matriceIniziale, ordine);
+		//matriceInversa = matrix_inversion(matriceIniziale, ordine);
+		matriceInversa = matrix_inversion_no_pivots(matriceIniziale, ordine);
 		//matriceInversa = matrix_inversion_improved(matriceIniziale, ordine);
 
 		// controllo che inversa sia corretta 
