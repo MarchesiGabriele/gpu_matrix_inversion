@@ -2,7 +2,7 @@ from numpy.linalg import inv
 import numpy as np
 import time
 
-N = 4096 
+N = 16000 
 TIMES = 1 
 
 def main():

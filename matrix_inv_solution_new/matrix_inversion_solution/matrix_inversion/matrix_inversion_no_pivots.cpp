@@ -59,12 +59,10 @@ std::vector<double> matrix_inversion_no_pivots(std::vector<double> matrix_vector
 			size_t globalId = get_global_id(0);		
 
 			__private double row;
-			__local double Aii;
+			__private double Aii;
 
 			row = matrix[size*rowId + globalId];
 			Aii = crr[0];
-			
-			barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE); 
 
 			matrix[size*rowId + globalId] = row/Aii;
 		})";
@@ -467,6 +465,7 @@ std::vector<double> matrix_inversion_no_pivots(std::vector<double> matrix_vector
 		tempoComputazioneInizio = steady_clock::now();
 		duration<float> pivotComputeTime = duration_cast<duration<float>> (steady_clock::now() - steady_clock::now());
 		duration<float> copyTime = duration_cast<duration<float>> (steady_clock::now() - steady_clock::now());
+		duration<float> crrTime = duration_cast<duration<float>> (steady_clock::now() - steady_clock::now());
 		duration<float> rowTime = duration_cast<duration<float>> (steady_clock::now() - steady_clock::now());
 		//duration<float> columnTime = duration_cast<duration<float>> (steady_clock::now() - steady_clock::now());
 		double columnTime = 0.0;
@@ -479,6 +478,10 @@ std::vector<double> matrix_inversion_no_pivots(std::vector<double> matrix_vector
 		cl_ulong time_start;
 		cl_ulong time_end;
 		for (int r = 0; r < matrix_order; r++) {
+
+			steady_clock::time_point crrInizio= steady_clock::now();
+
+
 			// FIND CRR 
 			operationResult = find_crr_kernel.setArg(2, r);
 			operationResult = commandQueue.enqueueNDRangeKernel(find_crr_kernel, cl::NullRange, cl::NDRange(1), cl::NullRange, NULL, NULL);
@@ -488,6 +491,8 @@ std::vector<double> matrix_inversion_no_pivots(std::vector<double> matrix_vector
 			}
 
 			commandQueue.finish();
+			steady_clock::time_point crrFine= steady_clock::now();
+			crrTime+= duration_cast<duration<float>> (crrFine - crrInizio);
 	/*
 			operationResult = commandQueue.enqueueReadBuffer(buffers[3], CL_TRUE, 0, sizeof(cl_double), crr.data(), NULL);
 			std::cout << "PIVOT: " << crr[0] << " ";
@@ -528,7 +533,7 @@ std::vector<double> matrix_inversion_no_pivots(std::vector<double> matrix_vector
 
 			commandQueue.finish();
 			steady_clock::time_point copyFine= steady_clock::now();
-			copyTime += duration_cast<duration<float>> (rowFine - rowInizio);
+			copyTime += duration_cast<duration<float>> (copyFine - copyInizio);
 
 
 
@@ -564,6 +569,7 @@ std::vector<double> matrix_inversion_no_pivots(std::vector<double> matrix_vector
 		std::cout << "\n\n";
 		//std::cout << "TEMPO COMPUTE PIVOT: " << pivotComputeTime.count() << " s" << std::endl;
 		std::cout << "TEMPO COPY: " << copyTime.count() << " s" << std::endl;
+		std::cout << "TEMPO CRR: " << crrTime.count() << " s" << std::endl;
 		std::cout << "TEMPO ROW: " << rowTime.count() << " s" << std::endl;
 		//std::cout << "TEMPO COLUMN: " << columnTime.count() << " s" << std::endl;
 		std::cout << "TEMPO COLUMN: " << std::setprecision(5) << columnTime / 1e9 << " s" << std::endl;
