@@ -5,102 +5,80 @@
 #include <iomanip>
 #include <fstream>
 #include <chrono>
-#include <gpu_performance_api/gpu_perf_api_interface_loader.h>
 #define __CL_ENABLE_EXCEPTIONS
-#define A false 
 
-/*
-	GpaApiManager* GpaApiManager::gpa_api_manager_ = nullptr;
-	GpaFuncTableInfo* gpa_function_table_info = nullptr;
-	GpaFunctionTable* gpa_function_table = nullptr;
+// CHECK DOCUMENTATION FOR KERNELS INFO
+	
+	// Returns empty vector if something goes wrong, if the input matrix is not square, if the input matrix order is <= 0
+	std::vector<double> matrix_inversion(std::vector<double> input_matrix, int matrix_order) {
 
-
-	bool InitializeGpa(){
-		bool ret_val = false;
-
-		std::cout << "00100101" << std::endl;
-		std::cout << GpaApiManager::Instance()->LoadApi(kGpaApiOpencl) << std::endl;
-		if (kGpaStatusOk == GpaApiManager::Instance()->LoadApi(kGpaApiOpencl)){
-			gpa_function_table = GpaApiManager::Instance()->GetFunctionTable(kGpaApiOpencl);
-
-			std::cout << "0923892" << std::endl;
-			if (nullptr != gpa_function_table){
-				std::cout << "1111" << std::endl;
-				ret_val = kGpaStatusOk == gpa_function_table->GpaInitialize(kGpaInitializeDefaultBit);
-			}
-		}
-		return ret_val;
-	}
-*/
-	std::vector<double> matrix_inversion(std::vector<double> matrix_vector, int matrix_order) {
-		// INIZIALIZZO COUNTERS
-		//std::cout << InitializeGpa() << std::endl;
-
-		// KERNEL PER FIXARE COLONNE
-		// NB: size deve essere pari alla larghezza della matrice augmentata
-		// CURRENT GFLOPS: 48 (with 2 FLOP per thread), THEORETICAL MAX: 496 
-		// NB: dato che devo eseguire la copia della matrice alla matrice output devo per forza copiare tutti i dati tutte le volte. 
+		// FIX COLUMN KERNEL 
+		// "size" = matrix_order*2, which is the width of the augmented matrix
+		// "r" is the index of the r'th iteration of the for loop where the kernel is enqueued inside the host code. 
 		const std::string fixColumnKernelString = R"(
 		#pragma OPENCL EXTENSION cl_khr_fp64 : enable
-		__kernel void fixColumnKernel(__global double *matrix, int size, int colIdx, __global double *output){
+		__kernel void fixColumnKernel(__global double *matrix, int size, int r, __global double *output){
 
-			size_t globalId = get_global_id(0);		/* column index */
-			size_t globalId2 = get_global_id(1);	/* row index */
+			size_t j = get_global_id(0);	/* column index */
+			size_t i = get_global_id(1);	/* row index */
 			
-			__private double currentRowValue;
-			__private double otherRowValue;
-			__private double AiIdx;
+			__private double Cij;
+			__private double Crj;		
+			__private double Cir;
 
-			currentRowValue = matrix[globalId2 * size + globalId];
-			otherRowValue = matrix[colIdx * size + globalId];
-			AiIdx = matrix[globalId2 * size + colIdx];
+			Cij = matrix[i * size + j];
+			Crj = matrix[r * size + j];
+			Cir = matrix[i * size + r];
 
-			if(AiIdx != 0 && globalId2 != colIdx){
-				currentRowValue = currentRowValue - (AiIdx * otherRowValue);
+			if(Cir != 0 && i != r){
+				Cij = Cij - (Cir * Crj);
 			}
 
-			output[globalId2*size + globalId] = currentRowValue;
+			output[i * size + j] = Cij;
 		})";
 
+		// MAX PIVOT KERNEL
+		// "size" = matrix_order*2, which is the width of the augmented matrix
+		// "r" is the index of the r'th iteration of the for loop where the kernel is enqueued inside the host code. 
 		const std::string maxPivotKernelString = R"(
 		#pragma OPENCL EXTENSION cl_khr_fp64 : enable
-		__kernel void maxPivotKernel(__global double *matrix, int size, int colId, __global double2 *output){
-			size_t localId = get_local_id(0);
-			int workGroupId = get_group_id(0);
+		__kernel void maxPivotKernel(__global double *matrix, int size, int r, __global double2 *output){
 			size_t localSize = get_local_size(0);
 			int globalId = get_global_id(0);
+			size_t localId = get_local_id(0);
+			int workGroupId = get_group_id(0);
 
-			__private int limiteLoop = 256;
+			__private int loopLimit = 256;
 			__local double2 localData2[256];
 			__private int lim = 0;
 
-			localData2[localId] = (double2)(matrix[globalId*size + colId], (double)(globalId));		
+			localData2[localId] = (double2)(matrix[globalId*size + r], (double)(globalId));		
 
 			barrier(CLK_LOCAL_MEM_FENCE);
 
-			/* Controllo se colId è superiore o meno all'intero workgroup corrente, se è superiore nessun elemento del workgroup corrente può essere il max */
-			if(colId <= (workGroupId*256 + 255)){
+			/* check if r is above current workGroup, if it is, no element of the current workGroup can be the max */
+			if(r <= (workGroupId*256 + 255)){
 				if((size/2) < 256){				
-					limiteLoop = (int)(size/2);
+					loopLimit = (int)(size/2);
 				}else if(workGroupId == (int)(floor((double)(size/512)))){		/* size == ordine*2 */
-					limiteLoop = (int)((size/2)%256);
+					loopLimit = (int)((size/2)%256);
 				}
 		
-				/* Controllo se colId è compreso tra gli elementi del workgroup corrente oppure se è sotto, se è sotto non devo tenerne conto durante la ricerca del max */
-				if(colId >= (workGroupId*256))
-					lim = limiteLoop-(colId%256);
+				/* Controllo se r è compreso tra gli elementi del workgroup corrente oppure se è sotto, se è sotto non devo tenerne conto durante la ricerca del max */
+				if(r>= (workGroupId * 256))
+					lim = loopLimit-(r % 256);
 				else
-					lim = limiteLoop;
+					lim = loopLimit;
 					
 				if(lim%2 != 0){
-					localData2[limiteLoop] = (double2)(0.0,0.0);
+					localData2[loopLimit] = (double2)(0.0,0.0);
 					lim++;
 					barrier(CLK_LOCAL_MEM_FENCE);
 				}
 			
 				for(int i = lim >> 1; i > 0; i>>=1){
 					if(lim < i){
-						if(fabs(localData2[(localId)+i].x) > fabs(localData2[localId].x) && globalId >= colId){
+						if(fabs(localData2[(localId)+i].x) > fabs(localData2[localId].x) && globalId >= r){
 							localData2[localId] = localData2[localId+i];  
 						}	 
 					}  
@@ -110,8 +88,8 @@
 					}
 				}
 
-				if(colId >= workGroupId*256)
-					output[workGroupId] = localData2[colId%256];
+				if(r>= workGroupId*256)
+					output[workGroupId] = localData2[r%256];
 				else
 					output[workGroupId] = localData2[0];
 			}else{
@@ -119,7 +97,8 @@
 			}
 		})";
 
-		// La dimensione globale è: numeroWorkGroups.	
+		
+		// FINAL MAX PIVOT KERNEL	
 		const std::string finalMaxPivotKernelString = R"(
 		#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 		__kernel void finalMaxPivotKernel(__global double2 *values){
@@ -146,28 +125,34 @@
 
 
 
-
+		// FIX ROW KERNEL
+		// "size" = matrix_order*2, which is the width of the augmented matrix
+		// "r" is the index of the r'th iteration of the for loop where the kernel is enqueued inside the host code. 
+		// "pivot" is a vector that contains the max pivot, used in this kernel to divide all the elements of the row.  
 		const std::string fixRowKernelString = R"(
 		#pragma OPENCL EXTENSION cl_khr_fp64 : enable
-		__kernel void fixRowKernel(__global double *matrix, int size, int rowId, __global double2 *pivot){
+		__kernel void fixRowKernel(__global double *matrix, int size, int r, __global double2 *pivot){
 			size_t globalId = get_global_id(0);		
 
 			__private double row;
 			__local double Aii;
 
-			row = matrix[size*rowId + globalId];
+			row = matrix[size*r+ globalId];
 			Aii = pivot[0].x;
 			
 			barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE); 
 
-			matrix[size*rowId + globalId] = row/Aii;
+			matrix[size*r+ globalId] = row/Aii;
 		})";
 
-		// Size corrisponde alla larghezza della matrice augmentata
-		// Max row è l'id della riga che deve eseguire lo swap con rowId
+		// PIVOT KERNEL
+		// "size" = matrix_order*2, which is the width of the augmented matrix
+		// "r" is the index of the r'th iteration of the for loop where the kernel is enqueued inside the host code. 
+		// "pivot" is a vector that contains the index of the max pivot, used in this kernel to know which row needs to be swapped  
+		// Max row è l'id della riga che deve eseguire lo swap con r 
 		const std::string pivotKernelString = R"(
 		#pragma OPENCL EXTENSION cl_khr_fp64 : enable
-		__kernel void pivotElementsKernel(__global double *matrix, int size, int rowId, __global double2 *pivot){
+		__kernel void pivotElementsKernel(__global double *matrix, int size, int r, __global double2 *pivot){
 			size_t globalId = get_global_id(0);
 			size_t localId = get_local_id(0);
 
@@ -178,16 +163,17 @@
 			maxRow = (int)(pivot[0].y);
 			barrier(CLK_LOCAL_MEM_FENCE); 
 
-			localDataOld[localId] = matrix[size*rowId + globalId];
+			localDataOld[localId] = matrix[size*r+ globalId];
 			localDataMax[localId] = matrix[size*maxRow + globalId];
 			barrier(CLK_LOCAL_MEM_FENCE); 
 
-			if(maxRow != rowId){
-				matrix[size*rowId + globalId] = localDataMax[localId];
+			if(maxRow != r){
+				matrix[size*r+ globalId] = localDataMax[localId];
 				matrix[size*maxRow + globalId] = localDataOld[localId];
 			}
 		})";
-
+			
+		// MAKE AUGMENTED MATRIX KERNEL + GET INVERTED MATRIX KERNEL
 		// Con matrixOrder si indende l'ordine della matrice iniziale, non la larghezza della matrice augmentata!!
 		// Finche sono a sinistra della matrice augmentata, leggo e scrivo dalla matrice input alla matrice augmentata
 		// Se sono a destra allora scrivo solamente il valore 1 o 0. 
@@ -226,52 +212,33 @@
 		}
 		)";
 
-		
-		std::cout << std::setprecision(2);
-
-		// se altezza vettore � zero ritorno vettore vuoto
+		// First check
 		if (matrix_order <= 0) {
 			return {};
 		}
 
-		// Controllo se la matrice � quadrata, se non lo � ritorno vettore vuoto
-		float matrix_height = matrix_vector.size() / matrix_order * 1.0;
-		if (matrix_height != matrix_order) {
+		// Check if the input matrix is square 
+		int matrix_height = int(input_matrix.size() / matrix_order);
+		if (matrix_height != matrix_order){
 			return {};
 		}
 
 		try {
-			// lista delle piattaforme disponibili 
+			// Available Platforms 
 			std::vector<cl::Platform>  platforms;
 			cl::Platform chosenPlatform;
 
-			// lista dei device disponibili  
+			// Available Devices 
 			std::vector<cl::Device>  devices;
 			cl::Device chosenDevice;
 
-			// contesto della piattaforma in cui mi trovo
 			cl::Context context;
-
-			// Command queue per il kernel ______
 			cl::CommandQueue commandQueue;
 
-			// Variabile usata per immagazzinare i risultati/errori delle operazioni che vengono eseguite
+			// Variable used to store errors 
 			cl_int operationResult;
 
-			std::string platformName;
-			std::string platformVendor;
-			std::string platformVersion;
-
-			// primo parametro funzione -> matrice da invertire (sofforma di vettore o vettore di vettori)
-			std::vector<cl_double> matrice_input = matrix_vector;
-
-			// Ordine Matrice  
-			// TODO CONTROLLARE  CHE LA MATRICE INSERITA SIA  QUADRATA !!
-			cl_int matrix_order = sqrt(matrice_input.size());
-
-			// matrice input a sinistra e matrice identita a destra (n x 2n)
-			// la dimensione di questa matrice � la dimensione globale
-			std::vector<cl_double> matrice_augmentata = std::vector<cl_double>((cl_double)matrix_order*matrix_order*2, 0);
+			std::vector<cl_double> augmented_matrix = std::vector<cl_double>(matrix_order*matrix_order*2, 0);
 
 			using namespace std::chrono;
 			// Tempo totale impiegato per eseguire la funzione matrix_inversio() 
@@ -289,6 +256,11 @@
 				std::cerr << "ERROR GETTING PLATFORM" << std::endl;
 				throw operationResult;
 			}
+
+			std::string platformName;
+			std::string platformVendor;
+			std::string platformVersion;
+
 			std::cout << "Piattaforme disponibili: " << std::endl;
 			for (cl::Platform i : platforms) {
 				i.getInfo(CL_PLATFORM_NAME, &platformName);
@@ -368,16 +340,16 @@
 			std::vector<cl::Buffer> buffers;
 			// Creo buffers n x 2n per matrice augmentata
 			steady_clock::time_point inizioCreazioneBuffer= steady_clock::now();
-			std::cout << matrice_augmentata.size() << std::endl;
-			buffers.push_back(cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), &operationResult));
+			std::cout << augmented_matrix.size() << std::endl;
+			buffers.push_back(cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, augmented_matrix.size() * sizeof(cl_double), augmented_matrix.data(), &operationResult));
 			
 			// Creo buffer per matrice input
-			std::cout << matrice_input.size() << std::endl;
-			buffers.push_back(cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, matrice_input.size() * sizeof(cl_double), matrice_input.data(), &operationResult));
+			std::cout << input_matrix.size() << std::endl;
+			buffers.push_back(cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, input_matrix.size() * sizeof(cl_double), input_matrix.data(), &operationResult));
 			
 			// Buffer per i max pivot parziali trovati per ciascun workgruop dal kernel MaxPivot.
 			// Questo buffer viene poi usato dal kernel finalMaxPivot, per mettere in prima posizione nel buffer il max pivot assoluto ed il suo index.
-			buffers.push_back(cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,  matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), &operationResult));
+			buffers.push_back(cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,  augmented_matrix.size() * sizeof(cl_double), augmented_matrix.data(), &operationResult));
 			
 			// Buffer per max pivots (dei workgroups)	
 			// Arrotondo sempre a numero più grande
@@ -595,7 +567,7 @@
 					std::cerr << "ERROR MAKE AUGMENTED KERNEL EXECUTION" << std::endl;
 					throw operationResult;
 			}
-			std::vector<cl_double> m = std::vector<cl_double>(matrice_augmentata.size(), 0);
+			std::vector<cl_double> m = std::vector<cl_double>(augmented_matrix.size(), 0);
 
 			operationResult = commandQueue.finish();
 			if (operationResult != CL_SUCCESS) {
@@ -637,14 +609,14 @@
 /*
 
 				if (flag)
-					operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
+					operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, augmented_matrix.size() * sizeof(cl_double), augmented_matrix.data(), NULL);
 				else
-					operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
+					operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, augmented_matrix.size() * sizeof(cl_double), augmented_matrix.data(), NULL);
 
-				for (int k = 0; k < matrice_augmentata.size(); k++) {
+				for (int k = 0; k < augmented_matrix.size(); k++) {
 					if (k != 0 && k % (matrix_order * 2) == 0)
 						std::cout << std::endl;
-					std::cout << matrice_augmentata[k] << "\t";
+					std::cout << augmented_matrix[k] << "\t";
 				}
 				std::cout << "\n\n";
 */
@@ -694,13 +666,13 @@
 				}
 /*
 				if(flag)
-					operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
+					operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, augmented_matrix.size() * sizeof(cl_double), augmented_matrix.data(), NULL);
 				else 
-					operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
-				for (int k = 0; k < matrice_augmentata.size(); k++) {
+					operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, augmented_matrix.size() * sizeof(cl_double), augmented_matrix.data(), NULL);
+				for (int k = 0; k < augmented_matrix.size(); k++) {
 					if (k != 0 && k % (matrix_order * 2) == 0)
 						std::cout << std::endl;
-					std::cout << matrice_augmentata[k] << "\t";
+					std::cout << augmented_matrix[k] << "\t";
 				}
 				std::cout << "\n\n";
 */
@@ -728,14 +700,14 @@
 				rowTime +=  duration_cast<duration<float>> (rowFine - rowInizio);
 /*
 				if(flag)
-					operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
+					operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, augmented_matrix.size() * sizeof(cl_double), augmented_matrix.data(), NULL);
 				else 
-					operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), matrice_augmentata.data(), NULL);
+					operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, augmented_matrix.size() * sizeof(cl_double), augmented_matrix.data(), NULL);
 
-				for (int k = 0; k < matrice_augmentata.size(); k++) {
+				for (int k = 0; k < augmented_matrix.size(); k++) {
 					if (k != 0 && k % (matrix_order * 2) == 0)
 						std::cout << std::endl;
-					std::cout << matrice_augmentata[k] << " ";
+					std::cout << augmented_matrix[k] << " ";
 				}
 				std::cout << "\n\n";
 */
@@ -794,9 +766,9 @@
 
 			// TODO: TENERE QUESTO READ BUFFER PERCHé SERVER PER IL CONTROLLO DELLA MATRICE IDENTITA
 			if (((matrix_order - 1) % 2) == 0)
-				operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), m.data(), NULL);
+				operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, augmented_matrix.size() * sizeof(cl_double), m.data(), NULL);
 			else
-				operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, matrice_augmentata.size() * sizeof(cl_double), m.data(), NULL);
+				operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, augmented_matrix.size() * sizeof(cl_double), m.data(), NULL);
 
 			operationResult = commandQueue.finish();
 			if (operationResult != CL_SUCCESS) {
@@ -850,7 +822,7 @@
 			std::cout << "Bandwidth: " << ((matrix_order*matrix_order*2*2)/readWriteTime.count())/1e9 << " GB/s" << std::endl;
 
 
-			std::vector<cl_double> matriceResult= std::vector<cl_double>(matrice_input.size(), 0.0);
+			std::vector<cl_double> matriceResult= std::vector<cl_double>(input_matrix.size(), 0.0);
 			steady_clock::time_point inizioRead = steady_clock::now();
 			// NB: la matrice augmentata � il doppio rispetto al numero di elementi iniziali
 			operationResult = commandQueue.enqueueReadBuffer(buffers[1], CL_TRUE, 0, matriceResult.size() * sizeof(cl_double), matriceResult.data(), NULL);

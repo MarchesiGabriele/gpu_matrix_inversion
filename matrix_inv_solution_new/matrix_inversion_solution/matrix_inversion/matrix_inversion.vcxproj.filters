@@ -24,12 +24,6 @@
     <ClCompile Include="main_file.cpp">
       <Filter>File di risorse</Filter>
     </ClCompile>
-    <ClCompile Include="pivot_max_test.cpp">
-      <Filter>File di risorse</Filter>
-    </ClCompile>
-    <ClCompile Include="matrix_inversion_improved.cpp">
-      <Filter>File di risorse</Filter>
-    </ClCompile>
     <ClCompile Include="matrix_inversion_no_pivots.cpp">
       <Filter>File di risorse</Filter>
     </ClCompile>

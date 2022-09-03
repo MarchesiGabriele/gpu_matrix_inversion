@@ -147,10 +147,8 @@
   <ItemGroup>
     <ClCompile Include="main_file.cpp" />
     <ClCompile Include="matrix_inversion.cpp" />
-    <ClCompile Include="matrix_inversion_improved.cpp" />
     <ClCompile Include="matrix_inversion_no_pivots.cpp" />
     <ClCompile Include="matrix_multiply.cpp" />
-    <ClCompile Include="pivot_max_test.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="headers.h" />
