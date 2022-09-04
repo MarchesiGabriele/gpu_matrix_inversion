@@ -3,55 +3,67 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <iostream>
 #include <string>
+#include "res_struct.h"
+using namespace std;
 
 
 int main(){
-	// Theoretical max is 16384
-	#define N 1000 
+	#define N 3 
 	#define REP 1 
 
+	ofstream myFile;
+	myFile.open("C:/TESI/TESI DOCUMENTAZIONE/results.txt");
+
 	for (int k = 0; k < REP; k++) {
-		std::vector<double> matriceIniziale = std::vector<double>(N*N);
-		std::vector<double> matriceInversa = std::vector<double>(N*N);
+		if ((k%1 == 0 && k != 0) || N != 0) {
+			//std::vector<double> matriceIniziale = std::vector<double>(k*k);
+			//std::cout << "\n\nINDEX: " << k << std::endl;
 
-		for (int i = 0; i < matriceIniziale.size(); i++) {
-			matriceIniziale[i] = rand() % 10;
-			//matriceIniziale[i] = (double)(1 / (double)(rand() % 1000 +1));
-		}
+			std::vector<double> matriceIniziale = std::vector<double>(N*N);
+			std::cout << N << std::endl;
 
-		//matriceIniziale = {2,8,5,1,10,5,9,9,3 };
-		//matriceIniziale = {0.01232,0.0012,0.12,0.998,0.007,0.00542,0.01,0.00433, 0.9};
-		//matriceIniziale = {9,8,5,1,10,5,9,9,3};
-		//matriceIniziale = {1,1,1,1,1,1,1,1,1};
-		//matriceIniziale = {1,0,0,0,0,0,0,0,1};
-/*
-		// ILL CONDITIONED MATRIX
-		matriceIniziale.clear();
-		for (int i = 0; i < N; i++) {
-			for (int j = 0; j < N; j++) {
-				matriceIniziale.push_back((double)1/(i+j+1));
+
+			Res matriceInversa;
+
+			for (int i = 0; i < matriceIniziale.size(); i++) {
+				matriceIniziale[i] = rand() % 10;
+				//matriceIniziale[i] = (double)(1 / (double)(rand() % 1000 +1));
 			}
+
+			matriceIniziale = {4,8,8,2,4,5,5,1,7};
+
+			if (k == 3) {
+				for (int l = 0; l < matriceIniziale.size(); l++) {
+					//matriceIniziale[i] = rand() % 10;
+					if (l % k == 0 && l != 0)
+						std::cout << std::endl;
+					std::cout << matriceIniziale[l] << " ";
+				}
+			}
+
+
+			matriceInversa = matrix_inversion(matriceIniziale, sqrt(matriceIniziale.size()));
+			//matriceInversa = matrix_inversion_no_pivots(matriceIniziale, ordine);
+
+			for (int i = 0; i < 10; i++) {
+				myFile << matriceInversa.times[i] << " ";
+			}
+
+			double err = matrix_multiply(matriceInversa.inversa, matriceIniziale);
+
+			if (err < 1e-10)
+				myFile << "OK\n";
+			else
+				myFile << "ERRORE\n";
+
 		}
-*/
-
-/*
-		for (int i = 0; i < N*N; i++) {
-			std::cout << matriceIniziale[i] << " ";
-		}
-*/
-
-		int ordine = sqrt(matriceIniziale.size());
-		
-
-		// calcolo inversa
-		matriceInversa = matrix_inversion(matriceIniziale, ordine);
-		//matriceInversa = matrix_inversion_no_pivots(matriceIniziale, ordine);
-
-		// controllo che inversa sia corretta 
-		
-		matrix_multiply(matriceInversa, matriceIniziale);
 	}
+
+	myFile << "FINE";
+
+	myFile.close();
 }
 
 

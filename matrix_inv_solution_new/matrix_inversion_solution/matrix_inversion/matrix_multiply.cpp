@@ -12,7 +12,7 @@ using namespace std::chrono;
 
 
 // NB: posso moltiplicare solamente matrici quadrate della stessa dimensione
-void matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA) {
+double matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA) {
 	try {
 		const std::string kernel = R"(
 			#pragma OPENCL EXTENSION cl_khr_fp64 : enable
@@ -134,7 +134,6 @@ void matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA)
 
 		duration<float> time =  duration_cast<duration<float>> (fine - inizio);
 
-		std::cout << "GFLOPS MATMUL: " << (matriceA.size() * sqrt(matriceA.size()) / (time.count() * 1e9));
 
 
 
@@ -144,12 +143,12 @@ void matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA)
 				throw result;
 			}
 
+		commandQueue.finish();
 
 		// leggo i risultati dell'operazione e li sposto in memoria host
 		result = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, vettoreC.size() * sizeof(cl_double), vettoreC.data(), NULL);
 		
 			
-		result = commandQueue.finish();
 	if (result != CL_SUCCESS) {
 				std::cerr << "ERROR GETTING DEVICES" << std::endl;
 				throw result;
@@ -170,7 +169,6 @@ void matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA)
 			}
 		}
 
-		std::cout << "\n\n TOT: " << tot << std::endl;
 		
 		/*for (int i = 0; i < vettoreC.size(); i++) {
 			if ((int)vettoreC[i] >0) {
@@ -209,11 +207,12 @@ void matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA)
 */
 
 
+		auto errore = sqrt(ordine) - sqrt(somma);
 
-
-		std::cout << "\nNORMA DI FROBENIUS: " << sqrt(somma) << std::endl;
-		std::cout << "\n\nRADICE ORDINE MATRICE: " << sqrt(ordine) << std::endl;
-		std::cout << std::setprecision(60) << "\n\nERRORE: " << sqrt(ordine) - sqrt(somma) << std::endl;
+		std::cout << std::setprecision(60) << "\nERRORE: " << errore << std::endl;
+		std::cout << std::setprecision(60) << "\nORDINE: " << sqrt(ordine) << std::endl;
+		std::cout << std::setprecision(60) << "\nSOMMA: " << sqrt(somma) << std::endl;
+		
 		//std::cout << std::endl;
 
 
@@ -242,7 +241,6 @@ void matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA)
 			}
 		}
 */
-		std::cout << "OK" << std::endl;
 /*
 		// stampo risultato
 		for (int i = 0; i < vettoreC.size(); i++) {
@@ -256,6 +254,7 @@ void matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA)
 */
 
 		buffers.clear();
+		return errore;
 
 		if (result != CL_SUCCESS) {
 			std::cerr << "ERROR ENQUEUE READ BUFFER" << std::endl;

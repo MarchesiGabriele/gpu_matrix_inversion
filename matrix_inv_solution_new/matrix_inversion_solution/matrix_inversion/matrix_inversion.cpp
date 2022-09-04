@@ -5,12 +5,15 @@
 #include <iomanip>
 #include <fstream>
 #include <chrono>
+#include "res_struct.h"
 #define __CL_ENABLE_EXCEPTIONS
 
 // CHECK DOCUMENTATION FOR KERNELS INFO
 	
 	// Returns empty vector if something goes wrong, if the input matrix is not square, if the input matrix order is <= 0
-	std::vector<double> matrix_inversion(std::vector<double> input_matrix, int matrix_order) {
+	Res matrix_inversion(std::vector<double> input_matrix, int matrix_order) {
+
+		std::vector<double> results = {};
 
 		// FIX COLUMN KERNEL 
 		// "size" = matrix_order*2, which is the width of the augmented matrix
@@ -250,101 +253,42 @@
 			steady_clock::time_point tempoFixRowFine;
 
 			// Recupero le piattaforme disponibili
-			steady_clock::time_point inizioRecuperoPlat= steady_clock::now();
 			operationResult = cl::Platform::get(&platforms);
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR GETTING PLATFORM" << std::endl;
 				throw operationResult;
 			}
 
-			std::string platformName;
-			std::string platformVendor;
-			std::string platformVersion;
-
-			std::cout << "Piattaforme disponibili: " << std::endl;
-			for (cl::Platform i : platforms) {
-				i.getInfo(CL_PLATFORM_NAME, &platformName);
-				i.getInfo(CL_PLATFORM_VENDOR, &platformVendor);
-				i.getInfo(CL_PLATFORM_VERSION, &platformVersion);
-				std::cout << "PIATTAFORMA: " << platformName << std::endl;
-				std::cout << "VENDITORE: " << platformVendor << std::endl;
-				std::cout << "VERSIONE: " << platformVersion << std::endl;
-				std::cout << std::endl;
-			}
-			steady_clock::time_point fineRecuperoPlat= steady_clock::now();
-			duration<float> tempoRecuperoPlat= duration_cast<duration<float>> (fineRecuperoPlat- inizioRecuperoPlat);
-			std::cout << "Tempo Recupero Plat: " << tempoRecuperoPlat.count() << " seconds" << std::endl;
-
-
 			// Scelgo piattaforma AMD 
 			chosenPlatform = platforms[0];
 
 			// Recupero i device disponibili e mostro INFO DEVICE
-			// https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clGetDeviceInfo.html
 			operationResult = chosenPlatform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR GETTING DEVICES" << std::endl;
 				throw operationResult;
 			}
 
-
-			// DEVICE INFO
-			std::string deviceName;
-			cl_ulong globalCacheSize;
-			cl_ulong localMemSize;
-			cl_ulong maxConstBufferSize;
-			size_t maxWorkGroupSize;
-			cl_uint maxWorkItemDimensions;
-			cl_ulong globalMemSize;
-			char extension[400];
-
-			std::cout << "Device disponibili: " << std::endl;
-			for (cl::Device i : devices) {
-				i.getInfo(CL_DEVICE_NAME, &deviceName);
-				i.getInfo(CL_DEVICE_GLOBAL_MEM_CACHE_SIZE, &globalCacheSize);
-				i.getInfo(CL_DEVICE_LOCAL_MEM_SIZE, &localMemSize);
-				i.getInfo(CL_DEVICE_GLOBAL_MEM_SIZE, &globalMemSize);
-				i.getInfo(CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE, &maxConstBufferSize);
-				i.getInfo(CL_DEVICE_MAX_WORK_GROUP_SIZE, &maxWorkGroupSize);
-				i.getInfo(CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, &maxWorkItemDimensions);
-				i.getInfo(CL_DEVICE_EXTENSIONS, &extension);
-				std::cout << "DEVICE: " << deviceName << std::endl;
-				std::cout << "Global Cache size: " << globalCacheSize << " bytes" << std::endl;
-				std::cout << "Global mem size: " << globalMemSize  << " bytes" << std::endl;
-				std::cout << "Local mem size: " <<localMemSize << " bytes"<< std::endl;
-				std::cout << "Max Const Buffer Size: " << maxConstBufferSize << " bytes"<< std::endl;
-				std::cout << "Max Work Group Size: " << maxWorkGroupSize << std::endl;
-				std::cout << "Max Work Item dimensions: " << maxWorkItemDimensions << std::endl;
-				std::cout << "Device Estensions: " << extension << std::endl;
-				std::cout << std::endl;
-			}
-
-
 			// Scelgo scheda grafica come DEVICE
 			chosenDevice = devices[0];
 
 			// Creo il context per il device scelto
-			steady_clock::time_point inizioCtx= steady_clock::now();
 			context = cl::Context(chosenDevice);
 			steady_clock::time_point fineCtx= steady_clock::now();
-			duration<float> tempoCtx= duration_cast<duration<float>> (fineCtx- inizioCtx);
-			std::cout << "Tempo Context" << tempoCtx.count() << " seconds" << std::endl;
 
 			// Creo la command queue per il device scelto
 			steady_clock::time_point inizioCq= steady_clock::now();
 			commandQueue = cl::CommandQueue(context, chosenDevice, CL_QUEUE_PROFILING_ENABLE);
 			steady_clock::time_point fineCq= steady_clock::now();
 			duration<float> tempoCq= duration_cast<duration<float>> (fineCq- inizioCq);
-			std::cout << "Tempo Comman Queue: " << tempoCq.count() << " seconds" << std::endl;
+			results.push_back(tempoCq.count());
 
 			std::vector<cl::Buffer> buffers;
 			// Creo buffers n x 2n per matrice augmentata
 			steady_clock::time_point inizioCreazioneBuffer= steady_clock::now();
-			std::cout << augmented_matrix.size() << std::endl;
 			buffers.push_back(cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, augmented_matrix.size() * sizeof(cl_double), augmented_matrix.data(), &operationResult));
 			
 			// Creo buffer per matrice input
-			std::cout << input_matrix.size() << std::endl;
 			buffers.push_back(cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, input_matrix.size() * sizeof(cl_double), input_matrix.data(), &operationResult));
 			
 			// Buffer per i max pivot parziali trovati per ciascun workgruop dal kernel MaxPivot.
@@ -352,29 +296,23 @@
 			buffers.push_back(cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,  augmented_matrix.size() * sizeof(cl_double), augmented_matrix.data(), &operationResult));
 			
 			// Buffer per max pivots (dei workgroups)	
-			// Arrotondo sempre a numero più grande
 			int numeroWorkgroups = 0;
 			if ((matrix_order % 256) == 0)
 				numeroWorkgroups = matrix_order / 256;
 			else
 				numeroWorkgroups = (int)(matrix_order / 256) + 1;
 
-			std::cout << "NUMERO WORKGROUPS: " << numeroWorkgroups << std::endl;
 			std::vector<cl_double2> max_pivots(numeroWorkgroups, cl_double2());
 			buffers.push_back(cl::Buffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,  numeroWorkgroups * sizeof(cl_double2), &operationResult));
 
 			steady_clock::time_point fineCreazioneBuffer= steady_clock::now();
-			if (operationResult != CL_SUCCESS) {
-				std::cerr << "ERROR CREATING BUFFERS1" << std::endl;
-				throw operationResult;
-			}
+
 			duration<float> tempoCreazioneBuffer = duration_cast<duration<float>> (fineCreazioneBuffer- inizioCreazioneBuffer);
-			std::cout << "Tempo Creazione Buffer: " << tempoCreazioneBuffer.count() << " seconds" <<  std::endl;
+			results.push_back(tempoCreazioneBuffer.count());
 
 
 
 			// Creo programmi usando i kernel
-			steady_clock::time_point inizioCreazioneProgrammi= steady_clock::now();
 			cl::Program fix_column_program(context, cl::Program::Sources(1, std::make_pair(fixColumnKernelString.c_str(), fixColumnKernelString.length() + 1)), &operationResult);
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR CREATING PROGRAM FIX COLUMNS" << std::endl;
@@ -413,16 +351,6 @@
 				throw operationResult;
 			}
 			
-			size_t fix_column_bin_size;
-			//unsigned char* fix_column_bin[];
-			fix_column_program.getInfo(CL_PROGRAM_BINARY_SIZES, &fix_column_bin_size);
-			fix_column_program.getInfo(CL_PROGRAM_BINARIES, &fix_column_bin_size);
-
-
-			steady_clock::time_point fineCreazioneProgrammi = steady_clock::now();
-			duration<float> tempoCreazioneProgrammi = duration_cast<duration<float>> (fineCreazioneProgrammi- inizioCreazioneProgrammi);
-			std::cout << "Tempo Creazione Programmi: " << tempoCreazioneProgrammi.count() << " seconds" <<  std::endl;
-
 
 			///////////////////////////////////////////////////////////////
 			/// Compilo i programmi
@@ -495,14 +423,15 @@
 			
 			}
 
+
 			steady_clock::time_point fineCompilazioneProgrammi = steady_clock::now();
 			duration<float> tempoCompilazioneProgrammi = duration_cast<duration<float>> (fineCompilazioneProgrammi - inizioCompilazioneProgrammi);
-			std::cout << "Tempo Compilazione Programmi: " << tempoCompilazioneProgrammi.count() << " seconds" << std::endl;
+
+			results.push_back(tempoCompilazioneProgrammi.count());
 
 
 			///////////////////////////////////////////////////////////////
 			/// Creo i kernel
-			steady_clock::time_point inizioCreazioneKernel = steady_clock::now();
 			cl::Kernel fix_column_kernel(fix_column_program, "fixColumnKernel", &operationResult);
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR CREATING FIX COLUMN KERNEL" << std::endl;
@@ -522,7 +451,6 @@
 			}
 
 			auto kernelWorkGroupSize = fix_column_kernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(chosenDevice);
-			std::cout << "KERNEL WORK GROUP SIZE: " << kernelWorkGroupSize << std::endl;
 
 			cl::Kernel make_augmented_matrix_kernel(matrix_program, "makeAugmentedMatrix", &operationResult);
 			if (operationResult != CL_SUCCESS) {
@@ -548,10 +476,6 @@
 				throw operationResult;
 			}
 
-			steady_clock::time_point fineCreazioneKernel= steady_clock::now();
-			duration<float> tempoCreazioneKernel= duration_cast<duration<float>> (fineCreazioneKernel- inizioCreazioneKernel);
-			std::cout << "Tempo Creazione Kernel: " << tempoCreazioneKernel.count() << " seconds" << std::endl;
-
 
 			/// Imposto argomenti kernel + esecuzione kernel 
 			///
@@ -559,6 +483,8 @@
 			/// Ad ogni ciclo imposto nuovi parametri al kernel e procedo con una nuova esecuzione
 			// Ci pensa openCL ad aspettare che un  kernel finisca prima di inizaire l'altro
 			// MAKE AUGMENTED MATRIX
+			steady_clock::time_point augmentataInizio= steady_clock::now();
+
 			operationResult = make_augmented_matrix_kernel.setArg(0, buffers[0]);
 			operationResult = make_augmented_matrix_kernel.setArg(1, buffers[1]);
 			operationResult = make_augmented_matrix_kernel.setArg(2, matrix_order);
@@ -570,6 +496,13 @@
 			std::vector<cl_double> m = std::vector<cl_double>(augmented_matrix.size(), 0);
 
 			operationResult = commandQueue.finish();
+
+			steady_clock::time_point augmentataFine= steady_clock::now();
+			duration<float> augmentataTempo = duration_cast<duration<float>> (augmentataFine - augmentataInizio);
+
+			results.push_back(augmentataTempo.count());
+
+
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR GETTING DEVICES" << std::endl;
 				throw operationResult;
@@ -606,20 +539,6 @@
 			for (int i = 0; i < matrix_order; i++) { 
 				bool flag = (i % 2) == 0;
 
-/*
-
-				if (flag)
-					operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, augmented_matrix.size() * sizeof(cl_double), augmented_matrix.data(), NULL);
-				else
-					operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, augmented_matrix.size() * sizeof(cl_double), augmented_matrix.data(), NULL);
-
-				for (int k = 0; k < augmented_matrix.size(); k++) {
-					if (k != 0 && k % (matrix_order * 2) == 0)
-						std::cout << std::endl;
-					std::cout << augmented_matrix[k] << "\t";
-				}
-				std::cout << "\n\n";
-*/
 				// MAX PIVOT 
 				steady_clock::time_point pivotInizio = steady_clock::now();
 				if(flag)
@@ -633,24 +552,13 @@
 					std::cerr << "ERROR MAX PIVOT KERNEL" << std::endl;
 					throw operationResult;
 				}
-/*
-				operationResult = commandQueue.enqueueReadBuffer(buffers[3], CL_TRUE, 0, numeroWorkgroups * sizeof(cl_double2), max_pivots.data(), NULL);
-				for (int k = 0; k < max_pivots.size(); k++) {
-					std::cout << "PIVOTS: " << max_pivots[k].x << " ";
-				}
-				std::cout << "\n\n";
-*/
+
 				// FINAL MAX PIVOT
 				operationResult = commandQueue.enqueueNDRangeKernel(final_max_pivot_kernel, cl::NullRange, cl::NDRange(numeroWorkgroups), cl::NullRange, NULL, NULL);
 				if (operationResult != CL_SUCCESS) {
 					std::cerr << "ERROR FINAL MAX PIVOT KERNEL" << std::endl;
 					throw operationResult;
 				}
-/*
-				operationResult = commandQueue.enqueueReadBuffer(buffers[3], CL_TRUE, 0, numeroWorkgroups * sizeof(cl_double2), max_pivots.data(), NULL);
-
-				std::cout << "PIVOT MAX: " << max_pivots[0].x << " , INDEX: " << max_pivots[0].y << std::endl;
-*/
 		
 				// PIVOT
 				if(flag)
@@ -664,18 +572,6 @@
 					std::cerr << "ERROR PIVOT KERNEL" << std::endl;
 					throw operationResult;
 				}
-/*
-				if(flag)
-					operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, augmented_matrix.size() * sizeof(cl_double), augmented_matrix.data(), NULL);
-				else 
-					operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, augmented_matrix.size() * sizeof(cl_double), augmented_matrix.data(), NULL);
-				for (int k = 0; k < augmented_matrix.size(); k++) {
-					if (k != 0 && k % (matrix_order * 2) == 0)
-						std::cout << std::endl;
-					std::cout << augmented_matrix[k] << "\t";
-				}
-				std::cout << "\n\n";
-*/
 
 				commandQueue.finish();
 				steady_clock::time_point pivotFine = steady_clock::now();
@@ -698,21 +594,9 @@
 				commandQueue.finish();
 				steady_clock::time_point rowFine = steady_clock::now();
 				rowTime +=  duration_cast<duration<float>> (rowFine - rowInizio);
-/*
-				if(flag)
-					operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, augmented_matrix.size() * sizeof(cl_double), augmented_matrix.data(), NULL);
-				else 
-					operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, augmented_matrix.size() * sizeof(cl_double), augmented_matrix.data(), NULL);
 
-				for (int k = 0; k < augmented_matrix.size(); k++) {
-					if (k != 0 && k % (matrix_order * 2) == 0)
-						std::cout << std::endl;
-					std::cout << augmented_matrix[k] << " ";
-				}
-				std::cout << "\n\n";
-*/
+
 				// COLUMNS
-				//steady_clock::time_point colInizio = steady_clock::now();
 				if (flag) {
 					operationResult = fix_column_kernel.setArg(0, buffers[0]); // read
 					operationResult = fix_column_kernel.setArg(3, buffers[2]); // write
@@ -735,55 +619,27 @@
 				event[0].getProfilingInfo(CL_PROFILING_COMMAND_START, &time_start);
 				event[0].getProfilingInfo(CL_PROFILING_COMMAND_END, &time_end);
 				columnTime += time_end - time_start;
-
-				//steady_clock::time_point colFine= steady_clock::now();
-				//columnTime +=  duration_cast<duration<float>> (colFine - colInizio);
 	
 			}
 			
 			operationResult = commandQueue.finish();
 			steady_clock::time_point tempoComputazioneFine = steady_clock::now();
 
+			results.push_back(pivotTime.count());
+			results.push_back(rowTime.count());
+			results.push_back(columnTime/1e9);
 
-			std::cout << "\n\n";
-			//std::cout << "TEMPO COMPUTE PIVOT: " << pivotComputeTime.count() << " s" << std::endl;
-			std::cout << "TEMPO PIVOT: " << pivotTime.count() << " s" << std::endl;
-			std::cout << "TEMPO ROW: " << rowTime.count() << " s" << std::endl;
-			//std::cout << "TEMPO COLUMN: " << columnTime.count() << " s" << std::endl;
-			std::cout << "TEMPO COLUMN: " << std::setprecision(5) <<  columnTime/1e9 << " s" << std::endl;
-			//std::cout << "TEMPO READ WRITE: " << readWriteTime.count() << " s" << std::endl;
-			std::cout << "GFLOPS ROW: " << (matrix_order*matrix_order*2)/(rowTime.count()*1e9) << std::endl;
-			std::cout << matrix_order << std::endl;
-			long ops = matrix_order * matrix_order * matrix_order * 2 * 2;
-			//std::cout << "GFLOPS COLUMN: " << (matrix_order* (1e-9) * matrix_order * matrix_order *4)/columnTime.count() << std::endl;
-			std::cout << "GFLOPS COLUMN: " << (matrix_order* (1e-9) * matrix_order * matrix_order *4)/(columnTime/1e9) << std::endl;
-			std::cout << "\n\n";
-
-			if (operationResult != CL_SUCCESS) {
-				std::cerr << "ERROR GETTING DEVICES" << std::endl;
-				throw operationResult;
-			}
-
-			// TODO: TENERE QUESTO READ BUFFER PERCHé SERVER PER IL CONTROLLO DELLA MATRICE IDENTITA
-			if (((matrix_order - 1) % 2) == 0)
-				operationResult = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, augmented_matrix.size() * sizeof(cl_double), m.data(), NULL);
-			else
-				operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, augmented_matrix.size() * sizeof(cl_double), m.data(), NULL);
-
-			operationResult = commandQueue.finish();
+			
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR GETTING DEVICES" << std::endl;
 				throw operationResult;
 			}
 
 			duration<float> tempoComputazioneGPU = duration_cast<duration<float>> (tempoComputazioneFine - tempoComputazioneInizio);
-	
-			//duration<float> tot = pivotComputeTime + pivotTime + rowTime + columnTime + readWriteTime;
-			//duration<float> tot = pivotComputeTime + pivotTime + rowTime + columnTime + readWriteTime;
-			//std::cout << "ERRORE TIME: " << (tempoComputazioneGPU - tot).count() << std::endl;
-			
-			steady_clock::time_point tempoRimInizio= steady_clock::now();
 
+			results.push_back(tempoComputazioneGPU.count());
+	
+			
 			// GET INVERTED MATRIX 
 			steady_clock::time_point getInvertedInizio= steady_clock::now();
 			if(((matrix_order - 1) % 2) == 0)
@@ -806,25 +662,22 @@
 					throw operationResult;
 			}
 
+			operationResult = commandQueue.finish();
 			steady_clock::time_point getInvertedFine= steady_clock::now();
 			duration<float> tempoGetInverted = duration_cast<duration<float>> (getInvertedFine- getInvertedInizio);
-			std::cout << "TEMPO GET INVERTED: " << tempoGetInverted.count() << std::endl;
-			operationResult = commandQueue.finish();
+
+			results.push_back(tempoGetInverted.count());
+
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR GETTING DEVICES" << std::endl;
 				throw operationResult;
 			}
 
 
-			// BANDWIDTH
-			// Theoretical max: (1780MHz * (256/8)*2 bit)/1e9 =  113 GB/s
-			duration<float> tempoFixRow = duration_cast<duration<float>> (tempoFixRowFine - tempoFixRowInizio);
-			std::cout << "Bandwidth: " << ((matrix_order*matrix_order*2*2)/readWriteTime.count())/1e9 << " GB/s" << std::endl;
-
-
 			std::vector<cl_double> matriceResult= std::vector<cl_double>(input_matrix.size(), 0.0);
 			steady_clock::time_point inizioRead = steady_clock::now();
-			// NB: la matrice augmentata � il doppio rispetto al numero di elementi iniziali
+
+			// LEGGO MATRICE RISULTATO
 			operationResult = commandQueue.enqueueReadBuffer(buffers[1], CL_TRUE, 0, matriceResult.size() * sizeof(cl_double), matriceResult.data(), NULL);
 
 			operationResult = commandQueue.finish();
@@ -835,7 +688,6 @@
 
 			steady_clock::time_point fineRead = steady_clock::now();
 			duration<float> tempoRead = duration_cast<duration<float>> (fineRead - inizioRead);
-			std::cout << "Tempo Read: " << tempoRead.count() << " seconds" << std::endl;
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR ENQUEUE READ BUFFER" << std::endl;
 				throw operationResult;
@@ -844,43 +696,15 @@
 		
 			steady_clock::time_point tempoTotaleFine= steady_clock::now();
 			duration<float> tempoTotale = duration_cast<duration<float>> (tempoTotaleFine - tempoTotaleInizio);
-			std::cout << "Tempo Totale Impiegato: " << tempoTotale.count() << " seconds" <<  std::endl;
-			std::cout << "Tempo Computazione: " << tempoComputazioneGPU.count() << " seconds" <<std::endl;
 
-			// CONTROLLO CHE MATRICE AUGMENTATA ABBIA MATRICE IDENTITYA A SINISTRA
-			int row = 0; 
-			for (int i = 0; i < m.size(); i++) {
-				if ((row*matrix_order*2 + row) == i) {
-					if (m[i] != 1) {
-						std::cout << "DIAGONALE DIVERSA DA 1: \t\t" << m[i] << " != 1";
-						return {};
-					}
-				}
-				else if (i < (row*matrix_order*2 + matrix_order)){
-					if (m[i] != 0) {
-						std::cout << "NON DIAGONALE DIVERSA DA 0: \t\t " << m[i] << " != 0";
-						return {};
-					}
-				}
-				else {
-					i += matrix_order;
-					if (i != 0 && (i % (matrix_order * 2) == 0)) {
-						row++;
-					}
-				}
-			}
-
-			std::cout << " \n\nNESSUN ERRORE CON CONTROLLO MATRICE IDENTITA DELLA MATRICE AUGMENATA \n\n"; 
-
+			results.push_back(tempoTotale.count());
 			buffers.clear();
-			steady_clock::time_point tempoRimFine= steady_clock::now();
-			duration<float> tempoRim = duration_cast<duration<float>> (tempoRimFine- tempoRimInizio);
-			std::cout << "Tempo RIMANENTE: " << tempoRim.count() << " seconds" <<  std::endl;
 
+			Res res;
+			res.inversa = matriceResult;
+			res.times = results;
 
-			//std::cout << "DISTRUZIONE COUNTERS: " <<  (kGpaStatusOk == gpa_function_table->GpaDestroy()); 
-
-			return matriceResult;
+			return res;
 		}
 		catch (cl_int e) {
 			std::cerr << "ERRORE N°: " << e << std::endl;
