@@ -80,11 +80,9 @@
 				}
 			
 				for(int i = lim >> 1; i > 0; i>>=1){
-					if(lim < i){
-						if(fabs(localData2[(localId)+i].x) > fabs(localData2[localId].x) && globalId >= r){
-							localData2[localId] = localData2[localId+i];  
-						}	 
-					}  
+					if(fabs(localData2[(localId)+i].x) > fabs(localData2[localId].x) && globalId >= r){
+						localData2[localId] = localData2[localId+i];  
+					}	 
 					barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE); 
 					if(i%2 != 0 && i != 1){
 						i++;
@@ -111,7 +109,7 @@
 			__local double2 vector[1000];
 			vector[globalId] = values[globalId];
 
-			barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+			barrier(CLK_LOCAL_MEM_FENCE);
 		
 			if(globalId == 0){
 				__private double2 max = (double2)(0.0,0.0);
