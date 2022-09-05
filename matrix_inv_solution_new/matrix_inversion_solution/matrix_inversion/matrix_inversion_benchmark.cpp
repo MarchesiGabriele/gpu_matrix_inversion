@@ -50,15 +50,11 @@ Res matrix_inversion_bench(std::vector<double> input_matrix, int matrix_order) {
 			int globalId = get_global_id(0);
 			size_t localId = get_local_id(0);
 			int workGroupId = get_group_id(0);
-
 			__private int loopLimit = 256;
 			__local double2 localData2[256];
 			__private int lim = 0;
-
 			localData2[localId] = (double2)(matrix[globalId*size + r], (double)(globalId));		
-
 			barrier(CLK_LOCAL_MEM_FENCE);
-
 			/* check if r is above current workGroup, if it is, no element of the current workGroup can be the max */
 			if(r <= (workGroupId*256 + 255)){
 				if((size/2) < 256){				
@@ -76,11 +72,11 @@ Res matrix_inversion_bench(std::vector<double> input_matrix, int matrix_order) {
 				if(lim%2 != 0){
 					localData2[loopLimit] = (double2)(0.0,0.0);
 					lim++;
-					barrier(CLK_LOCAL_MEM_FENCE);
 				}
+				barrier(CLK_LOCAL_MEM_FENCE);
 			
 				for(int i = lim >> 1; i > 0; i>>=1){
-					if(fabs(localData2[(localId)+i].x) > fabs(localData2[localId].x) && globalId >= r){
+					if(localId < i && fabs(localData2[(localId)+i].x) > fabs(localData2[localId].x) && localData2[localId+i].y >= r){
 						localData2[localId] = localData2[localId+i];  
 					}	 
 					barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE); 
@@ -88,7 +84,6 @@ Res matrix_inversion_bench(std::vector<double> input_matrix, int matrix_order) {
 						i++;
 					}
 				}
-
 				if(r>= workGroupId*256)
 					output[workGroupId] = localData2[r%256];
 				else
