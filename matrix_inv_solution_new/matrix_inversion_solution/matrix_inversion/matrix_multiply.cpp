@@ -1,4 +1,4 @@
-#include <CL/cl.hpp>
+ï»¿#include <CL/cl.hpp>
 #include <CL/opencl.h>
 #include <stdio.h>
 #include <iostream>
@@ -33,7 +33,7 @@ double matrix_multiply(std::vector<double> matriceB, std::vector<double> matrice
 			outputC[row * ordine + col] = sum;
 
 			}
-		)"; 
+		)";
 
 
 
@@ -42,7 +42,7 @@ double matrix_multiply(std::vector<double> matriceB, std::vector<double> matrice
 		cl::Context context;
 		cl::CommandQueue commandQueue;
 
-		std::vector<cl_double> vettoreC((cl_double)(sqrt(matriceA.size())* sqrt(matriceB.size())));
+		std::vector<cl_double> vettoreC((cl_double)(sqrt(matriceA.size()) * sqrt(matriceB.size())));
 		cl_int result;
 
 		/// SETUP
@@ -59,7 +59,7 @@ double matrix_multiply(std::vector<double> matriceB, std::vector<double> matrice
 			std::cerr << "ERROR GETTING DEVICE" << std::endl;
 			throw result;
 		}
-	
+
 
 		// il device al context	
 		context = cl::Context(device[0]);
@@ -128,32 +128,31 @@ double matrix_multiply(std::vector<double> matriceB, std::vector<double> matrice
 			throw result;
 		}
 
-			
+
 		result = commandQueue.finish();
 		steady_clock::time_point fine = steady_clock::now();
 
-		duration<float> time =  duration_cast<duration<float>> (fine - inizio);
+		duration<float> time = duration_cast<duration<float>> (fine - inizio);
 
-		std::cout << "GFLOPS MATMUL: " << (matriceA.size() * sqrt(matriceA.size()) / (time.count() * 1e9));
 
 
 
 		result = commandQueue.enqueueNDRangeKernel(kernelMultiply, cl::NullRange, cl::NDRange((cl_int)sqrt(matriceA.size()), (cl_int)sqrt(matriceA.size())), cl::NullRange, NULL, NULL);
-	if (result != CL_SUCCESS) {
-				std::cerr << "ERROR GETTING DEVICES" << std::endl;
-				throw result;
-			}
+		if (result != CL_SUCCESS) {
+			std::cerr << "ERROR GETTING DEVICES" << std::endl;
+			throw result;
+		}
 
+		commandQueue.finish();
 
 		// leggo i risultati dell'operazione e li sposto in memoria host
 		result = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, vettoreC.size() * sizeof(cl_double), vettoreC.data(), NULL);
-		
-			
-		result = commandQueue.finish();
-	if (result != CL_SUCCESS) {
-				std::cerr << "ERROR GETTING DEVICES" << std::endl;
-				throw result;
-			}
+
+
+		if (result != CL_SUCCESS) {
+			std::cerr << "ERROR GETTING DEVICES" << std::endl;
+			throw result;
+		}
 
 
 		if (result != CL_SUCCESS) {
@@ -165,30 +164,29 @@ double matrix_multiply(std::vector<double> matriceB, std::vector<double> matrice
 
 		int tot = 0;
 		for (int i = 0; i < vettoreC.size(); i++) {
-			if ((int)vettoreC[i] >0) {
+			if ((int)vettoreC[i] > 0) {
 				tot++;
 			}
 		}
 
-		std::cout << "\n\n TOT: " << tot << std::endl;
-		
+
 		/*for (int i = 0; i < vettoreC.size(); i++) {
 			if ((int)vettoreC[i] >0) {
 				std::cout << "POSIZIONE: " << i << " , VALORE: " << vettoreC[i] << std::endl;
 			}
 		} */
-		
+
 		int ordine = sqrt(vettoreC.size());
-	/*	int r = 0;
-		for (int i = 0; i < vettoreC.size(); i++) {
-			if (i != 0 && (i % ordine) == 0) {
-				r++;
+		/*	int r = 0;
+			for (int i = 0; i < vettoreC.size(); i++) {
+				if (i != 0 && (i % ordine) == 0) {
+					r++;
+				}
+				if (i == (r * ordine + r)) {
+					vettoreC[i] = 1 - vettoreC[i];
+				}
 			}
-			if (i == (r * ordine + r)) {
-				vettoreC[i] = 1 - vettoreC[i];
-			}
-		}
-	*/	
+		*/
 
 
 
@@ -197,30 +195,31 @@ double matrix_multiply(std::vector<double> matriceB, std::vector<double> matrice
 		for (int i = 0; i < vettoreC.size(); i++) {
 			somma += vettoreC[i] * vettoreC[i];
 			//std::cout << "\n\nSOMMA ATTUALE: " << somma << std::endl;
-		} 
-/*
-		if (somma > 1) {
-			// STAMPO PORZIONE DEL VETTORE C
-			for (int i = 0; i < vettoreC.size()/100; i++) {
-				std::cout << vettoreC[i] <<  "  ";
-			} 
-
 		}
-*/
+		/*
+				if (somma > 1) {
+					// STAMPO PORZIONE DEL VETTORE C
+					for (int i = 0; i < vettoreC.size()/100; i++) {
+						std::cout << vettoreC[i] <<  "  ";
+					}
+
+				}
+		*/
 
 
+		auto errore = sqrt(ordine) - sqrt(somma);
 
+		std::cout << std::setprecision(60) << "\nERRORE: " << errore << std::endl;
+		std::cout << std::setprecision(60) << "\nORDINE: " << sqrt(ordine) << std::endl;
+		std::cout << std::setprecision(60) << "\nSOMMA: " << sqrt(somma) << std::endl;
 
-		std::cout << "\nNORMA DI FROBENIUS: " << sqrt(somma) << std::endl;
-		std::cout << "\n\nRADICE ORDINE MATRICE: " << sqrt(ordine) << std::endl;
-		std::cout << std::setprecision(60) << "\n\nERRORE: " << sqrt(ordine) - sqrt(somma) << std::endl;
 		//std::cout << std::endl;
 
 
 
 /*
-		// Controllo che matrice finale sia matrice identità
-		int riga = 0; 
+		// Controllo che matrice finale sia matrice identitï¿½
+		int riga = 0;
 		for (int i = 0; i < vettoreC.size(); i++) {
 			// Controllo che elemento su diagonale sia uguale ad 1
 			if (i == (riga + riga*ordine)) {
@@ -242,7 +241,6 @@ double matrix_multiply(std::vector<double> matriceB, std::vector<double> matrice
 			}
 		}
 */
-		std::cout << "OK" << std::endl;
 /*
 		// stampo risultato
 		for (int i = 0; i < vettoreC.size(); i++) {
@@ -250,14 +248,13 @@ double matrix_multiply(std::vector<double> matriceB, std::vector<double> matrice
 				std::cout << std::setprecision(60) <<std::endl;
 			}
 			std::cout << vettoreC[i] << "\t\t";
-		} 
+		}
 
 
 */
 
 		buffers.clear();
-
-		return sqrt(ordine) - sqrt(somma);
+		return errore;
 
 		if (result != CL_SUCCESS) {
 			std::cerr << "ERROR ENQUEUE READ BUFFER" << std::endl;
