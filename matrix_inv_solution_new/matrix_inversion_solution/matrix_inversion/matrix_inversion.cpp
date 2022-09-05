@@ -47,15 +47,11 @@
 			int globalId = get_global_id(0);
 			size_t localId = get_local_id(0);
 			int workGroupId = get_group_id(0);
-
 			__private int loopLimit = 256;
 			__local double2 localData2[256];
 			__private int lim = 0;
-
 			localData2[localId] = (double2)(matrix[globalId*size + r], (double)(globalId));		
-
 			barrier(CLK_LOCAL_MEM_FENCE);
-
 			/* check if r is above current workGroup, if it is, no element of the current workGroup can be the max */
 			if(r <= (workGroupId*256 + 255)){
 				if((size/2) < 256){				
@@ -73,21 +69,18 @@
 				if(lim%2 != 0){
 					localData2[loopLimit] = (double2)(0.0,0.0);
 					lim++;
-					barrier(CLK_LOCAL_MEM_FENCE);
 				}
+				barrier(CLK_LOCAL_MEM_FENCE);
 			
 				for(int i = lim >> 1; i > 0; i>>=1){
-					if(lim < i){
-						if(fabs(localData2[(localId)+i].x) > fabs(localData2[localId].x) && globalId >= r){
-							localData2[localId] = localData2[localId+i];  
-						}	 
-					}  
+					if(localId < i && fabs(localData2[(localId)+i].x) > fabs(localData2[localId].x) && globalId >= r){
+						localData2[localId] = localData2[localId+i];  
+					}	 
 					barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE); 
 					if(i%2 != 0 && i != 1){
 						i++;
 					}
 				}
-
 				if(r>= workGroupId*256)
 					output[workGroupId] = localData2[r%256];
 				else
@@ -607,7 +600,6 @@
 				bool flag = (i % 2) == 0;
 
 /*
-
 				if (flag)
 					operationResult = commandQueue.enqueueReadBuffer(buffers[0], CL_TRUE, 0, augmented_matrix.size() * sizeof(cl_double), augmented_matrix.data(), NULL);
 				else
@@ -633,12 +625,16 @@
 					std::cerr << "ERROR MAX PIVOT KERNEL" << std::endl;
 					throw operationResult;
 				}
+
 /*
 				operationResult = commandQueue.enqueueReadBuffer(buffers[3], CL_TRUE, 0, numeroWorkgroups * sizeof(cl_double2), max_pivots.data(), NULL);
 				for (int k = 0; k < max_pivots.size(); k++) {
 					std::cout << "PIVOTS: " << max_pivots[k].x << " ";
 				}
+
+
 				std::cout << "\n\n";
+
 */
 				// FINAL MAX PIVOT
 				operationResult = commandQueue.enqueueNDRangeKernel(final_max_pivot_kernel, cl::NullRange, cl::NDRange(numeroWorkgroups), cl::NullRange, NULL, NULL);
@@ -650,8 +646,8 @@
 				operationResult = commandQueue.enqueueReadBuffer(buffers[3], CL_TRUE, 0, numeroWorkgroups * sizeof(cl_double2), max_pivots.data(), NULL);
 
 				std::cout << "PIVOT MAX: " << max_pivots[0].x << " , INDEX: " << max_pivots[0].y << std::endl;
-*/
 		
+*/
 				// PIVOT
 				if(flag)
 					operationResult = pivot_kernel.setArg(0, buffers[0]);
@@ -675,8 +671,8 @@
 					std::cout << augmented_matrix[k] << "\t";
 				}
 				std::cout << "\n\n";
-*/
 
+*/
 				commandQueue.finish();
 				steady_clock::time_point pivotFine = steady_clock::now();
 				pivotTime +=  duration_cast<duration<float>> (pivotFine- pivotInizio);

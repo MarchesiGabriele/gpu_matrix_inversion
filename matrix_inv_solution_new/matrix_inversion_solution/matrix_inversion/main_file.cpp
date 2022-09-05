@@ -4,12 +4,17 @@
 #include <iomanip>
 #include <fstream>
 #include <string>
+using namespace std;
 
 
 int main(){
 	// Theoretical max is 16384
-	#define N 1000 
-	#define REP 1 
+	#define N 130 
+	#define REP 100
+
+	ofstream myFile;
+
+	myFile.open("C:\\TESI\\TESI DOCUMENTAZIONE\\results.txt");
 
 	for (int k = 0; k < REP; k++) {
 		std::vector<double> matriceIniziale = std::vector<double>(N*N);
@@ -23,7 +28,7 @@ int main(){
 		//matriceIniziale = {2,8,5,1,10,5,9,9,3 };
 		//matriceIniziale = {0.01232,0.0012,0.12,0.998,0.007,0.00542,0.01,0.00433, 0.9};
 		//matriceIniziale = {9,8,5,1,10,5,9,9,3};
-		//matriceIniziale = {1,1,1,1,1,1,1,1,1};
+		//matriceIniziale = {4,8,8,2,4,5,5,1,7};
 		//matriceIniziale = {1,0,0,0,0,0,0,0,1};
 /*
 		// ILL CONDITIONED MATRIX
@@ -50,8 +55,15 @@ int main(){
 
 		// controllo che inversa sia corretta 
 		
-		matrix_multiply(matriceInversa, matriceIniziale);
+		double err = matrix_multiply(matriceInversa, matriceIniziale);
+		myFile << err;
+
+		if (err < 1e-10)
+			myFile << "\t\tOK\n";
+		else
+			myFile << "\t\tERRORE\n";
 	}
+	myFile.close();
 }
 
 
