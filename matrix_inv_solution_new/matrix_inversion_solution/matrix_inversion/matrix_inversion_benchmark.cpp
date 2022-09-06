@@ -23,6 +23,7 @@ Res matrix_inversion_bench(std::vector<double> input_matrix, int matrix_order) {
 		__kernel void fixColumnKernel(__global double *matrix, int size, int r, __global double *output){
 
 			size_t j = get_global_id(0);	/* column index */
+
 			size_t i = get_global_id(1);	/* row index */
 			
 			__private double Cij;
@@ -489,7 +490,6 @@ Res matrix_inversion_bench(std::vector<double> input_matrix, int matrix_order) {
 		std::vector<cl_double> m = std::vector<cl_double>(augmented_matrix.size(), 0);
 
 		operationResult = commandQueue.finish();
-
 		steady_clock::time_point augmentataFine = steady_clock::now();
 		duration<float> augmentataTempo = duration_cast<duration<float>> (augmentataFine - augmentataInizio);
 
@@ -565,8 +565,9 @@ Res matrix_inversion_bench(std::vector<double> input_matrix, int matrix_order) {
 				std::cerr << "ERROR PIVOT KERNEL" << std::endl;
 				throw operationResult;
 			}
-
-			commandQueue.finish();
+			//////////////////////////////////////////////////////////
+			//commandQueue.finish();
+			//////////////////////////////////////////////////////////
 			steady_clock::time_point pivotFine = steady_clock::now();
 			pivotTime += duration_cast<duration<float>> (pivotFine - pivotInizio);
 
@@ -584,7 +585,9 @@ Res matrix_inversion_bench(std::vector<double> input_matrix, int matrix_order) {
 				throw operationResult;
 			}
 
-			commandQueue.finish();
+			//////////////////////////////////////////////////////////
+			//commandQueue.finish();
+			//////////////////////////////////////////////////////////
 			steady_clock::time_point rowFine = steady_clock::now();
 			rowTime += duration_cast<duration<float>> (rowFine - rowInizio);
 
@@ -599,20 +602,23 @@ Res matrix_inversion_bench(std::vector<double> input_matrix, int matrix_order) {
 				operationResult = fix_column_kernel.setArg(3, buffers[0]); // write
 			}
 			operationResult = fix_column_kernel.setArg(2, i); // index colonna da fixare
-			operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange(matrix_order * 2, matrix_order), cl::NullRange, NULL, &event[0]);
+			//operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange(matrix_order * 2, matrix_order), cl::NullRange, NULL, &event[0]);
+			operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange(matrix_order * 2, matrix_order), cl::NullRange, NULL, NULL);
 			if (operationResult != CL_SUCCESS) {
 				std::cerr << "ERROR FIX COLUMNs KERNEL" << std::endl;
 				throw operationResult;
 			}
 
+			//////////////////////////////////////////////////////////
+			/// TOGLIERE ANCHE L'EVENTO DAL KERNEL!!
+			/*
 			event[0].waitForEvents;
 			commandQueue.finish();
-
-
 			event[0].getProfilingInfo(CL_PROFILING_COMMAND_START, &time_start);
 			event[0].getProfilingInfo(CL_PROFILING_COMMAND_END, &time_end);
 			columnTime += time_end - time_start;
-
+			*/
+			//////////////////////////////////////////////////////////
 		}
 
 		operationResult = commandQueue.finish();
@@ -643,7 +649,6 @@ Res matrix_inversion_bench(std::vector<double> input_matrix, int matrix_order) {
 		operationResult = get_inverted_matrix_kernel.setArg(1, buffers[1]);
 		operationResult = get_inverted_matrix_kernel.setArg(2, matrix_order);
 
-		operationResult = commandQueue.finish();
 		if (operationResult != CL_SUCCESS) {
 			std::cerr << "ERROR GETTING DEVICES" << std::endl;
 			throw operationResult;
