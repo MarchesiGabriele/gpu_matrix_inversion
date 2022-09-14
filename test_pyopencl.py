@@ -1,17 +1,18 @@
-
 import pyopencl as cl
+import pyopencl.array as cl_array
 import numpy as np
 import os
 
 os.environ['PYOPENCL_COMPILER_OUTPUT'] = '1'
 os.environ['PYOPENCL_CTX'] = '0'
 
-N = 10 
+N = 3 
 
 ctx = cl.create_some_context()
 queue = cl.CommandQueue(ctx)
 
-matrice_input= np.random.uniform(0.000001, 100, (N,N)).astype(np.float32)
+matrice_input= np.random.uniform(0, 100, (N,N)).astype(np.float32)
+print(matrice_input)
 
 
 # BUFFERS
@@ -19,7 +20,8 @@ mf = cl.mem_flags
 matrice_augmentata_buf = cl.Buffer(ctx, mf.READ_WRITE, size = matrice_input.nbytes*2)
 matrice_augmentata2_buf = cl.Buffer(ctx, mf.READ_WRITE, size = matrice_input.nbytes*2)
 matrice_input_buf = cl.Buffer(ctx, mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf = matrice_input)
-pivot_parziali_buf = cl.Buffer(ctx, mf.READ_WRITE, ((N // 256)+1)*np.dtype(np.float32).itemsize)
+n_workgroups = (N // 256)+1
+pivot_parziali_buf = cl.Buffer(ctx, mf.READ_WRITE, n_workgroups*np.dtype(cl_array.vec.float2).itemsize)
 
 # KERNELS
 fix_col_prg = cl.Program(ctx, """
@@ -153,7 +155,7 @@ get_inverted_matrix_prg = cl.Program(ctx, """
 
 max_pivot_prg = cl.Program(ctx, """
         #pragma OPENCL EXTENSION cl_khr_fp64 : enable
-		__kernel void maxPivotKernel(__global float *matrix, int size, int r, __global float2 *output){
+		__kernel void maxPivot(__global float *matrix, int size, int r, __global float2 *output){
 			size_t localSize = get_local_size(0);
 			int globalId = get_global_id(0);
 			size_t localId = get_local_id(0);
@@ -203,12 +205,96 @@ max_pivot_prg = cl.Program(ctx, """
 
 # MAKE AUGMENTED MATRIX
 mam = make_augmented_matrix_prg.makeAugmentedMatrix
-
-
 mam.set_args(matrice_augmentata_buf, matrice_input_buf, np.int32(N))
+res = cl.enqueue_nd_range_kernel(queue, mam, [N*2, N], None, global_work_offset = [0,1])
 
 
-#res = cl.enqueue_nd_range_kernel(queue, mam, [N*2, N], None, matrice_augmentata_buf, matrice_input_buf, N, global_work_offset = [0,1])
+fr = fix_row_prg.fixRow
+fc = fix_col_prg.fixColumn
+mp = max_pivot_prg.maxPivot
+fmp = final_max_pivot_prg.finalMaxPivot
+p = pivot_prg.pivot
+
+# KERNEL LOOP
+for r in range(N): 
+    flag = (r%2) == 0
+
+    
+    # MAX PIVOT 
+    if flag:
+        mp.set_args(matrice_augmentata_buf, np.int32(N*2), np.int32(r), pivot_parziali_buf) 
+    else:
+        mp.set_args(matrice_augmentata2_buf, np.int32(N*2), np.int32(r), pivot_parziali_buf) 
+
+    res = cl.enqueue_nd_range_kernel(queue, mp, [N], [256])
+
+    #FINAL MAX PIVOT
+    fmp.set_args(pivot_parziali_buf) 
+    res = cl.enqueue_nd_range_kernel(queue, fmp, [n_workgroups], None)
+
+
+    #PIVOT
+    if flag:
+        p.set_args(matrice_augmentata_buf, np.int32(N*2), np.int32(r), pivot_parziali_buf) 
+    else:
+        p.set_args(matrice_augmentata2_buf, np.int32(N*2), np.int32(r), pivot_parziali_buf) 
+
+    res = cl.enqueue_nd_range_kernel(queue, p, [N*2], [256])
+
+
+    #ROW
+    if flag:
+        fr.set_args(matrice_augmentata_buf, np.int32(N*2), np.int32(r), pivot_parziali_buf) 
+    else:
+        fr.set_args(matrice_augmentata2_buf, np.int32(N*2), np.int32(r), pivot_parziali_buf) 
+
+    res = cl.enqueue_nd_range_kernel(queue, fr, [N*2], [256])
+
+
+    #COLUMN
+    if flag:
+        fc.set_args(matrice_augmentata_buf, np.int32(N*2), np.int32(r), matrice_augmentata2_buf) 
+    else:
+        fc.set_args(matrice_augmentata2_buf, np.int32(N*2), np.int32(r), matrice_augmentata_buf)
+
+    res = cl.enqueue_nd_range_kernel(queue, fc, [N*2, N], None)
+
+
+
+gim = get_inverted_matrix_prg.getInvertedMatrix
+
+if (N-1)%2 == 0:
+    gim.set_args(matrice_augmentata2_buf, matrice_input_buf, np.int32(N))
+else:
+    gim.set_args(matrice_augmentata_buf, matrice_input_buf, np.int32(N))
+
+res = cl.enqueue_nd_range_kernel(queue, gim, [N*2, N], None, global_work_offset = [0,1])
+
+cl.enqueue_copy(queue, matrice_input, matrice_input_buf)
+
+
+
+print(matrice_input)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
 
 
 
