@@ -1,4 +1,4 @@
 ﻿  main_file.cpp
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\main_file.cpp(34,74): warning C4244: 'argomento': conversione da 'double' a 'int'. Possibile perdita di dati.
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\main_file.cpp(89,64): warning C4244: 'argomento': conversione da 'double' a 'int'. Possibile perdita di dati.
+C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\main_file.cpp(97,64): warning C4244: 'argomento': conversione da 'double' a 'int'. Possibile perdita di dati.
+C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\main_file.cpp(118,64): warning C4244: 'argomento': conversione da 'double' a 'int'. Possibile perdita di dati.
   matrix_inversion.vcxproj -> C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\x64\Debug\matrix_inversion.exe

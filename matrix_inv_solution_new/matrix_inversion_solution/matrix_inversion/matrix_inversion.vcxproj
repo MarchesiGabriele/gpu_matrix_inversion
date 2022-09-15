@@ -146,8 +146,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main_file.cpp" />
-    <ClCompile Include="matrix_inversion.cpp" />
+    <ClCompile Include="matrix_inversion_FP32.cpp" />
     <ClCompile Include="matrix_inversion_benchmark.cpp" />
+    <ClCompile Include="matrix_inversion_FP64.cpp" />
     <ClCompile Include="matrix_inversion_no_pivots.cpp" />
     <ClCompile Include="matrix_inversion_no_pivots_benchmark.cpp" />
     <ClCompile Include="matrix_multiply.cpp" />

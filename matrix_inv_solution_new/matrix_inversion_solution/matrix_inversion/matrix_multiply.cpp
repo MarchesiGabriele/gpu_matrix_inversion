@@ -12,19 +12,19 @@ using namespace std::chrono;
 
 
 // NB: posso moltiplicare solamente matrici quadrate della stessa dimensione
-double matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA) {
+void matrix_multiply(std::vector<float> matriceB, std::vector<float> matriceA) {
 	try {
 		const std::string kernel = R"(
 			#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 			__kernel void simpleMultiply(
-				__global double* outputC,
+				__global float* outputC,
 				int ordine,
-				__global double* inputA,
-				__global double* inputB) {
+				__global float* inputA,
+				__global float* inputB) {
 			int row = get_global_id(1);
 			int col = get_global_id(0);
 
-			double sum = 0.0;
+			float sum = 0.0;
 
 			for (int i = 0; i < ordine; i++) {
 				sum += inputA[row * ordine+ i] * inputB[i * ordine+ col];
@@ -42,7 +42,7 @@ double matrix_multiply(std::vector<double> matriceB, std::vector<double> matrice
 		cl::Context context;
 		cl::CommandQueue commandQueue;
 
-		std::vector<cl_double> vettoreC((cl_double)(sqrt(matriceA.size()) * sqrt(matriceB.size())));
+		std::vector<cl_float> vettoreC((cl_float)(sqrt(matriceA.size()) * sqrt(matriceB.size())));
 		cl_int result;
 
 		/// SETUP
@@ -70,9 +70,9 @@ double matrix_multiply(std::vector<double> matriceB, std::vector<double> matrice
 
 		// CREAZIONE BUFFER E MOVIMENTO DATI IN MEMORIA
 		std::vector<cl::Buffer> buffers;
-		buffers.push_back(cl::Buffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, matriceA.size() * sizeof(cl_double), matriceA.data(), &result));
-		buffers.push_back(cl::Buffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, matriceB.size() * sizeof(cl_double), matriceB.data(), &result));
-		buffers.push_back(cl::Buffer(context, CL_MEM_READ_ONLY, vettoreC.size() * sizeof(cl_double), NULL, &result));
+		buffers.push_back(cl::Buffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, matriceA.size() * sizeof(cl_float), matriceA.data(), &result));
+		buffers.push_back(cl::Buffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, matriceB.size() * sizeof(cl_float), matriceB.data(), &result));
+		buffers.push_back(cl::Buffer(context, CL_MEM_READ_ONLY, vettoreC.size() * sizeof(cl_float), NULL, &result));
 		if (result != CL_SUCCESS) {
 			std::cerr << "ERROR CREATING BUFFERS" << std::endl;
 			throw result;
@@ -146,7 +146,7 @@ double matrix_multiply(std::vector<double> matriceB, std::vector<double> matrice
 		commandQueue.finish();
 
 		// leggo i risultati dell'operazione e li sposto in memoria host
-		result = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, vettoreC.size() * sizeof(cl_double), vettoreC.data(), NULL);
+		result = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, vettoreC.size() * sizeof(cl_float), vettoreC.data(), NULL);
 
 
 		if (result != CL_SUCCESS) {
@@ -191,7 +191,7 @@ double matrix_multiply(std::vector<double> matriceB, std::vector<double> matrice
 
 
 		// NORMA DI FROBENIUS
-		double somma = 0.0;
+		float somma = 0.0;
 		for (int i = 0; i < vettoreC.size(); i++) {
 			somma += vettoreC[i] * vettoreC[i];
 			//std::cout << "\n\nSOMMA ATTUALE: " << somma << std::endl;
@@ -213,49 +213,7 @@ double matrix_multiply(std::vector<double> matriceB, std::vector<double> matrice
 		std::cout << std::setprecision(60) << "\nORDINE: " << sqrt(ordine) << std::endl;
 		std::cout << std::setprecision(60) << "\nSOMMA: " << sqrt(somma) << std::endl;
 
-		//std::cout << std::endl;
-
-
-
-/*
-		// Controllo che matrice finale sia matrice identit�
-		int riga = 0;
-		for (int i = 0; i < vettoreC.size(); i++) {
-			// Controllo che elemento su diagonale sia uguale ad 1
-			if (i == (riga + riga*ordine)) {
-				if((vettoreC[i] - 1) > (1/1e3)){
-					std::cout << "ERRORE, DIAGONALE DIVERSO DA 1" << std::endl;
-					std::cout << vettoreC[i] << "!=" << 1 << std::endl;
-					return;
-				}
-			}
-			else {
-				if(vettoreC[i] > (1/1e3)){
-					std::cout << "ERRORE, NON DIAGONALE DIVERSO DA 0" << std::endl;
-					std::cout << vettoreC[i] << "!=" << 0 << std::endl;
-					return;
-				}
-			}
-			if (i != 0 && (i % (int)ordine) == 0) {
-				riga++;
-			}
-		}
-*/
-/*
-		// stampo risultato
-		for (int i = 0; i < vettoreC.size(); i++) {
-			if ( (i % ordine) == 0) {
-				std::cout << std::setprecision(60) <<std::endl;
-			}
-			std::cout << vettoreC[i] << "\t\t";
-		}
-
-
-*/
-
 		buffers.clear();
-		return errore;
-
 		if (result != CL_SUCCESS) {
 			std::cerr << "ERROR ENQUEUE READ BUFFER" << std::endl;
 			throw result;

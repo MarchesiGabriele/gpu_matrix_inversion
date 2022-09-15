@@ -2,13 +2,13 @@ from numpy.linalg import inv
 import numpy as np
 import time
 
-N = 16000 
+N = 1000 
 TIMES = 1 
 
 def main():
     for i in range(TIMES):
         array = np.random.uniform(0.00000000001, 0, (N,N)) 
-        a = np.array(array, dtype = np.float64)
+        a = np.array(array)
         start = time.monotonic()
         res = inv(np.matrix(a)) 
         end = time.monotonic()
@@ -22,10 +22,10 @@ def main():
 
 def c(): 
     rng = np.random.default_rng()
-    array = rng.random((N,N), dtype = np.float64)
+    array = rng.random((N,N), dtype = np.double)
     print(array[0])
     start = time.monotonic()
-    a = np.array(array, dtype = np.float64)
+    a = np.array(array, dtype = np.double)
     res =inv(np.matrix(a)) 
     end = time.monotonic()
     check = np.matmul(res, a)

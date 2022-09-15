@@ -2,9 +2,11 @@
 #include <vector>
 #include "res_struct.h"
 
-double matrix_multiply(std::vector<double> matriceA, std::vector<double> matriceB);
+void matrix_multiply(std::vector<float> matriceA, std::vector<float> matriceB);
 
-Res matrix_inversion(std::vector<double> matrix_vector, int matrix_order);
+std::vector<float> matrix_inversion_FP32(std::vector<float> matrix_vector, int matrix_order);
+
+std::vector<double> matrix_inversion_FP64(std::vector<double> matrix_vector, int matrix_order);
 
 Res matrix_inversion_bench(std::vector<double> matrix_vector, int matrix_order);
 

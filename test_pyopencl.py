@@ -6,7 +6,7 @@ import os
 os.environ['PYOPENCL_COMPILER_OUTPUT'] = '1'
 os.environ['PYOPENCL_CTX'] = '0'
 
-N = 3 
+N = 10000 
 
 ctx = cl.create_some_context()
 queue = cl.CommandQueue(ctx)
@@ -274,14 +274,14 @@ res = cl.enqueue_nd_range_kernel(queue, gim, [N*2, N], None, global_work_offset 
 cl.enqueue_copy(queue, matrice_input, matrice_input_buf)
 
 print("INIZIO CONTROLLO")
-print(matrice_input2, "\n")
-print(matrice_input, "\n")
+#print(matrice_input2, "\n")
+#print(matrice_input, "\n")
 
 c = np.random.uniform(0, 100, (N,N)).astype(np.float32)
 
 np.matmul(matrice_input, matrice_input2, c)
 
-print(c)
+#print(c)
 
 assert (c.shape[0] == c.shape[1]) and (c == np.eye(c.shape[0])).all()
 
