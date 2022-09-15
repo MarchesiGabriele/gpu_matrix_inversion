@@ -2,7 +2,7 @@ from numpy.linalg import inv
 import numpy as np
 import time
 
-N = 1000 
+N = 8192 
 TIMES = 1 
 
 def main():
@@ -22,10 +22,10 @@ def main():
 
 def c(): 
     rng = np.random.default_rng()
-    array = rng.random((N,N), dtype = np.double)
+    array = rng.random((N,N))
     print(array[0])
     start = time.monotonic()
-    a = np.array(array, dtype = np.double)
+    a = np.array(array)
     res =inv(np.matrix(a)) 
     end = time.monotonic()
     check = np.matmul(res, a)

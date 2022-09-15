@@ -748,11 +748,11 @@
 			//std::cout << "TEMPO COLUMN: " << columnTime.count() << " s" << std::endl;
 			std::cout << "TEMPO COLUMN: " << std::setprecision(5) <<  columnTime/1e9 << " s" << std::endl;
 			//std::cout << "TEMPO READ WRITE: " << readWriteTime.count() << " s" << std::endl;
-			std::cout << "GFLOPS ROW: " << (matrix_order*matrix_order*2)/(rowTime.count()*1e9) << std::endl;
-			std::cout << matrix_order << std::endl;
+			//std::cout << "GFLOPS ROW: " << (matrix_order*matrix_order*2)/(rowTime.count()*1e9) << std::endl;
+			//std::cout << matrix_order << std::endl;
 			long ops = matrix_order * matrix_order * matrix_order * 2 * 2;
 			//std::cout << "GFLOPS COLUMN: " << (matrix_order* (1e-9) * matrix_order * matrix_order *4)/columnTime.count() << std::endl;
-			std::cout << "GFLOPS COLUMN: " << (matrix_order* (1e-9) * matrix_order * matrix_order *4)/(columnTime/1e9) << std::endl;
+			//std::cout << "GFLOPS COLUMN: " << (matrix_order* (1e-9) * matrix_order * matrix_order *4)/(columnTime/1e9) << std::endl;
 			std::cout << "\n\n";
 
 			if (operationResult != CL_SUCCESS) {
@@ -815,7 +815,7 @@
 			// BANDWIDTH
 			// Theoretical max: (1780MHz * (256/8)*2 bit)/1e9 =  113 GB/s
 			duration<float> tempoFixRow = duration_cast<duration<float>> (tempoFixRowFine - tempoFixRowInizio);
-			std::cout << "Bandwidth: " << ((matrix_order*matrix_order*2*2)/readWriteTime.count())/1e9 << " GB/s" << std::endl;
+			//std::cout << "Bandwidth: " << ((matrix_order*matrix_order*2*2)/readWriteTime.count())/1e9 << " GB/s" << std::endl;
 			
 
 

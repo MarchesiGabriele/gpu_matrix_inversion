@@ -2,29 +2,39 @@ import pyopencl as cl
 import pyopencl.array as cl_array
 import numpy as np
 import os
+import math
+import time
 
 os.environ['PYOPENCL_COMPILER_OUTPUT'] = '1'
 os.environ['PYOPENCL_CTX'] = '0'
 
-N = 10000 
+N = 4096 
 
-ctx = cl.create_some_context()
-queue = cl.CommandQueue(ctx)
-
+# CREO MATRICI INPUT
 matrice_input= np.random.uniform(0, 100, (N,N)).astype(np.float32)
 matrice_input2= matrice_input.copy()
-print(matrice_input)
+#print(matrice_input)
+
+# INIZIALIZZO CONTEXT e COMMANQUEUE
+st7 = time.monotonic()
+st1 = time.monotonic()
+ctx = cl.create_some_context()
+queue = cl.CommandQueue(ctx)
+end1 = time.monotonic()
 
 
 # BUFFERS
+st2 = time.monotonic()
 mf = cl.mem_flags
 matrice_augmentata_buf = cl.Buffer(ctx, mf.READ_WRITE, size = matrice_input.nbytes*2)
 matrice_augmentata2_buf = cl.Buffer(ctx, mf.READ_WRITE, size = matrice_input.nbytes*2)
 matrice_input_buf = cl.Buffer(ctx, mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf = matrice_input)
 n_workgroups = (N // 256)+1
 pivot_parziali_buf = cl.Buffer(ctx, mf.READ_WRITE, n_workgroups*np.dtype(cl_array.vec.float2).itemsize)
+end2 = time.monotonic()
 
 # KERNELS
+st3 = time.monotonic()
 fix_col_prg = cl.Program(ctx, """
         #pragma OPENCL EXTENSION cl_khr_fp64 : enable
 		__kernel void fixColumn(__global float *matrix, int size, int r, __global float *output){
@@ -202,13 +212,16 @@ max_pivot_prg = cl.Program(ctx, """
 			}
 		}"""
         ).build()
-
+end3 = time.monotonic()
 
 # MAKE AUGMENTED MATRIX
+
+st4 = time.monotonic()
 mam = make_augmented_matrix_prg.makeAugmentedMatrix
 mam.set_args(matrice_augmentata_buf, matrice_input_buf, np.int32(N))
 res = cl.enqueue_nd_range_kernel(queue, mam, [N*2, N], None, global_work_offset = [0,1])
-
+queue.finish()
+end4 = time.monotonic()
 
 fr = fix_row_prg.fixRow
 fc = fix_col_prg.fixColumn
@@ -217,6 +230,7 @@ fmp = final_max_pivot_prg.finalMaxPivot
 p = pivot_prg.pivot
 
 # KERNEL LOOP
+st5 = time.monotonic()
 for r in range(N): 
     flag = (r%2) == 0
 
@@ -260,8 +274,11 @@ for r in range(N):
 
     res = cl.enqueue_nd_range_kernel(queue, fc, [N*2, N], None)
 
+queue.finish()
+end5 = time.monotonic()
 
 
+st6 = time.monotonic()
 gim = get_inverted_matrix_prg.getInvertedMatrix
 
 if (N-1)%2 == 0:
@@ -270,38 +287,34 @@ else:
     gim.set_args(matrice_augmentata_buf, matrice_input_buf, np.int32(N))
 
 res = cl.enqueue_nd_range_kernel(queue, gim, [N*2, N], None, global_work_offset = [0,1])
+queue.finish()
+end6 = time.monotonic()
 
 cl.enqueue_copy(queue, matrice_input, matrice_input_buf)
+queue.finish()
+end7 = time.monotonic()
 
-print("INIZIO CONTROLLO")
-#print(matrice_input2, "\n")
-#print(matrice_input, "\n")
+print("\n\nINIZIO CONTROLLO")
 
-c = np.random.uniform(0, 100, (N,N)).astype(np.float32)
-
-np.matmul(matrice_input, matrice_input2, c)
-
-#print(c)
-
-assert (c.shape[0] == c.shape[1]) and (c == np.eye(c.shape[0])).all()
-
-
+print("Tempo queue + context: ", (end1 - st1))
+print("Tempo creazione buffers: ", (end2 - st2))
+print("Tempo build: ", (end3 - st3))
+print("Tempo makeaugmented: ", (end4 - st4))
+print("Tempo computazione: ", (end5 - st5))
+print("Tempo get inverted: ", (end6 - st6))
+print("Tempo totale: ", (end7 - st7), "\n\n")
 
 
+c = np.matmul(matrice_input, matrice_input2)
 
+sum = 0
+vec = c.flat
+for i in range(c.size):
+    sum += vec[i]*vec[i]
 
-
-
-
-
-
-
-
-
-    
-
-
-
+print("ordine: ", math.sqrt(N))
+print("somma: ", math.sqrt(sum))
+print("errore: ", math.sqrt(N) - math.sqrt(sum))
 
 
 
