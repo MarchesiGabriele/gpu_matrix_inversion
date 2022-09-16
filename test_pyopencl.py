@@ -39,25 +39,52 @@ end2 = time.monotonic()
 # KERNELS
 st3 = time.monotonic()
 fix_col_prg = cl.Program(ctx, """
-        #pragma OPENCL EXTENSION cl_khr_fp64 : enable
-		__kernel void fixColumn(__global float *matrix, int size, int r, __global float *output){
+		__kernel void fixColumn(__global float *matrix, int size, int r, __global float *output, int remain, int limit){
 
-			size_t j = get_global_id(0);	/* column index */
-			size_t i = get_global_id(1);	/* row index */
+			int j = get_global_id(0)*4;
+			size_t i = get_global_id(1);
 			
-			__private float Cij;
-			__private float Crj;		
+			__private float4 Cij;
+			__private float4 Crj;		
 			__private float Cir;
 
-			Cij = matrix[i * size + j];
-			Crj = matrix[r * size + j];
 			Cir = matrix[i * size + r];
 
+			Cij.x = matrix[i * size + j];
+			Cij.y = matrix[i * size + j+1];
+			Cij.z = matrix[i * size + j+2];
+			Cij.w = matrix[i * size + j+3];
+
+			Crj.x = matrix[r * size + j];
+			Crj.y = matrix[r * size + j+1];
+			Crj.z = matrix[r * size + j+2];
+			Crj.w = matrix[r * size + j+3];
+
+
 			if(Cir != 0 && i != r){
-				Cij = Cij - (Cir * Crj);
+				Cij.x = Cij.x - (Cir * Crj.x);
+				Cij.y = Cij.y - (Cir * Crj.y);
+				Cij.z = Cij.z - (Cir * Crj.z);
+				Cij.w = Cij.w - (Cir * Crj.w);
 			}
 
-			output[i * size + j] = Cij;
+			output[i * size + j] = Cij.x;
+			output[i * size + j+1] = Cij.y;
+			output[i * size + j+2] = Cij.z;
+			output[i * size + j+3] = Cij.w;
+
+            if(remain != 0 && (j/4) == (limit-1)){
+                for(int s = 0; s < remain; s++){
+			        float crj = matrix[r * size + j+4+s];
+			        float cij = matrix[i * size + j+4+s];
+
+                    if(Cir != 0 && i != r){
+                        cij = cij - (Cir * crj);
+                    }
+
+			        output[i * size + j+4+s] = cij;
+               }
+            }
 		}"""
         ).build()
 
@@ -234,6 +261,8 @@ p = pivot_prg.pivot
 
 # KERNEL LOOP
 st5 = time.monotonic()
+
+pp = (N*2)%4
 for r in range(N): 
     flag = (r%2) == 0
 
@@ -270,12 +299,17 @@ for r in range(N):
 
 
     #COLUMN
+    # TODO: PROVARE AD USARE GLI OFFSET, solo offset iniziale
     if flag:
-        fc.set_args(matrice_augmentata_buf, np.int32(N*2), np.int32(r), matrice_augmentata2_buf) 
+        fc.set_args(matrice_augmentata_buf, np.int32(N*2), np.int32(r), matrice_augmentata2_buf, np.int32(pp), np.int32((N*2)//4)) 
     else:
-        fc.set_args(matrice_augmentata2_buf, np.int32(N*2), np.int32(r), matrice_augmentata_buf)
+        fc.set_args(matrice_augmentata2_buf, np.int32(N*2), np.int32(r), matrice_augmentata_buf, np.int32(pp), np.int32((N*2)//4))
+    res = cl.enqueue_nd_range_kernel(queue, fc, [(N*2)//4, N], None)
 
-    res = cl.enqueue_nd_range_kernel(queue, fc, [N*2, N], None)
+
+
+print(pp)
+print((N*2)//4)
 
 queue.finish()
 end5 = time.monotonic()
