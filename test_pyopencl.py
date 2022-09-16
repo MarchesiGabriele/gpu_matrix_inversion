@@ -1,9 +1,11 @@
 import pyopencl as cl
-import pyopencl.array as cl_array
 import numpy as np
 import os
 import math
 import time
+import warnings
+
+warnings.filterwarnings("ignore")
 
 os.environ['PYOPENCL_COMPILER_OUTPUT'] = '1'
 os.environ['PYOPENCL_CTX'] = '0'
@@ -14,6 +16,7 @@ N = 4096
 matrice_input= np.random.uniform(0, 100, (N,N)).astype(np.float32)
 matrice_input2= matrice_input.copy()
 #print(matrice_input)
+
 
 # INIZIALIZZO CONTEXT e COMMANQUEUE
 st7 = time.monotonic()
@@ -30,7 +33,7 @@ matrice_augmentata_buf = cl.Buffer(ctx, mf.READ_WRITE, size = matrice_input.nbyt
 matrice_augmentata2_buf = cl.Buffer(ctx, mf.READ_WRITE, size = matrice_input.nbytes*2)
 matrice_input_buf = cl.Buffer(ctx, mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf = matrice_input)
 n_workgroups = (N // 256)+1
-pivot_parziali_buf = cl.Buffer(ctx, mf.READ_WRITE, n_workgroups*np.dtype(cl_array.vec.float2).itemsize)
+pivot_parziali_buf = cl.Buffer(ctx, mf.READ_WRITE, n_workgroups*np.dtype(cl.cltypes.float2).itemsize)
 end2 = time.monotonic()
 
 # KERNELS
@@ -277,7 +280,7 @@ for r in range(N):
 queue.finish()
 end5 = time.monotonic()
 
-
+# GET INVERTED MATRIX 
 st6 = time.monotonic()
 gim = get_inverted_matrix_prg.getInvertedMatrix
 
@@ -290,12 +293,12 @@ res = cl.enqueue_nd_range_kernel(queue, gim, [N*2, N], None, global_work_offset 
 queue.finish()
 end6 = time.monotonic()
 
+# COPY MATRIX FROM BUFFER TO HOST ARRAY 
 cl.enqueue_copy(queue, matrice_input, matrice_input_buf)
 queue.finish()
 end7 = time.monotonic()
 
-print("\n\nINIZIO CONTROLLO")
-
+print("INIZIO CONTROLLO\n")
 print("Tempo queue + context: ", (end1 - st1))
 print("Tempo creazione buffers: ", (end2 - st2))
 print("Tempo build: ", (end3 - st3))
@@ -304,7 +307,7 @@ print("Tempo computazione: ", (end5 - st5))
 print("Tempo get inverted: ", (end6 - st6))
 print("Tempo totale: ", (end7 - st7), "\n\n")
 
-
+# CONTROLLO FINALE
 c = np.matmul(matrice_input, matrice_input2)
 
 sum = 0
@@ -315,8 +318,3 @@ for i in range(c.size):
 print("ordine: ", math.sqrt(N))
 print("somma: ", math.sqrt(sum))
 print("errore: ", math.sqrt(N) - math.sqrt(sum))
-
-
-
-
-
