@@ -48,6 +48,16 @@ fix_col_prg = cl.Program(ctx, """
 			__private float4 Crj;		
 			__private float Cir;
 
+            // Questi valori precedenti a r sono sempre 0, quindi evito di leggere e fare i calcoli
+            if(j+3 < r && (j/4) != (limit-1)){
+                output[i * size + j] = 0;
+                output[i * size + j+1] = 0;
+                output[i * size + j+2] = 0;
+                output[i * size + j+3] = 0;
+                return;
+            }
+
+
 			Cir = matrix[i * size + r];
 
 			Cij.x = matrix[i * size + j];
@@ -306,10 +316,6 @@ for r in range(N):
         fc.set_args(matrice_augmentata2_buf, np.int32(N*2), np.int32(r), matrice_augmentata_buf, np.int32(pp), np.int32((N*2)//4))
     res = cl.enqueue_nd_range_kernel(queue, fc, [(N*2)//4, N], None)
 
-
-
-print(pp)
-print((N*2)//4)
 
 queue.finish()
 end5 = time.monotonic()
