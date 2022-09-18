@@ -11,7 +11,7 @@ os.environ['PYOPENCL_COMPILER_OUTPUT'] = '1'
 os.environ['PYOPENCL_CTX'] = '0'
 
 N = 4096 
-REP = 10 
+REP = 1 
 
 def matrix_inv():
     # CREO MATRICI INPUT
@@ -67,13 +67,12 @@ def matrix_inv():
                 Cij.z = matrix[i * size + j+2];
                 Cij.w = matrix[i * size + j+3];
 
-                Crj.x = matrix[r * size + j];
-                Crj.y = matrix[r * size + j+1];
-                Crj.z = matrix[r * size + j+2];
-                Crj.w = matrix[r * size + j+3];
-
-
                 if(Cir != 0 && i != r){
+                    Crj.x = matrix[r * size + j];
+                    Crj.y = matrix[r * size + j+1];
+                    Crj.z = matrix[r * size + j+2];
+                    Crj.w = matrix[r * size + j+3];
+
                     Cij.x = Cij.x - (Cir * Crj.x);
                     Cij.y = Cij.y - (Cir * Crj.y);
                     Cij.z = Cij.z - (Cir * Crj.z);
@@ -254,6 +253,7 @@ def matrix_inv():
                 }
             }"""
             ).build()
+
     end3 = time.monotonic()
 
     # MAKE AUGMENTED MATRIX
@@ -339,7 +339,7 @@ def matrix_inv():
     cl.enqueue_copy(queue, matrice_input, matrice_input_buf)
     queue.finish()
     end7 = time.monotonic()
-    """
+
     print("INIZIO CONTROLLO\n")
     print("Tempo queue + context: ", (end1 - st1))
     print("Tempo creazione buffers: ", (end2 - st2))
@@ -348,7 +348,7 @@ def matrix_inv():
     print("Tempo computazione: ", (end5 - st5))
     print("Tempo get inverted: ", (end6 - st6))
     print("Tempo totale: ", (end7 - st7), "\n\n")
-    """
+
     # CONTROLLO FINALE
     c = np.matmul(matrice_input, matrice_input2)
 

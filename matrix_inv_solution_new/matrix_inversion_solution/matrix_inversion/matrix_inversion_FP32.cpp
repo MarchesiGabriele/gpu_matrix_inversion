@@ -819,7 +819,7 @@
 			
 
 
-			std::vector<cl_float> matriceResult= std::vector<cl_float>(input_matrix.size(), 0.0);
+			std::vector<float> matriceResult= std::vector<float>(input_matrix.size(), 0.0);
 			steady_clock::time_point inizioRead = steady_clock::now();
 			// NB: la matrice augmentata � il doppio rispetto al numero di elementi iniziali
 			operationResult = commandQueue.enqueueReadBuffer(buffers[1], CL_TRUE, 0, matriceResult.size() * sizeof(cl_float), matriceResult.data(), NULL);

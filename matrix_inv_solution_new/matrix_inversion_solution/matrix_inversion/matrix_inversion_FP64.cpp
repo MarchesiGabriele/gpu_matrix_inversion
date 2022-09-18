@@ -818,7 +818,7 @@ std::vector<double> matrix_inversion_FP64(std::vector<double> input_matrix, int 
 		std::cout << "Bandwidth: " << ((matrix_order * matrix_order * 2 * 2) / readWriteTime.count()) / 1e9 << " GB/s" << std::endl;
 
 
-		std::vector<cl_double> matriceResult = std::vector<cl_double>(input_matrix.size(), 0.0);
+		std::vector<double> matriceResult = std::vector<double>(input_matrix.size(), 0.0);
 		steady_clock::time_point inizioRead = steady_clock::now();
 		// NB: la matrice augmentata � il doppio rispetto al numero di elementi iniziali
 		operationResult = commandQueue.enqueueReadBuffer(buffers[1], CL_TRUE, 0, matriceResult.size() * sizeof(cl_double), matriceResult.data(), NULL);

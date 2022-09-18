@@ -4,18 +4,22 @@
 #include <iomanip>
 #include <fstream>
 #include <iostream>
+#include <time.h>
 #include <string>
 #include "res_struct.h"
 using namespace std;
 
 
 int main() {
-#define FP32 true 
-#define N 4096 
-#define REP 16000 
-#define PIVOTS false 
+	#define FP32 true 
+	#define N 4096 
+	#define REP 16000 
+	#define PIVOTS false 
 
-Res matriceInversa;
+	Res matriceInversa;
+
+	unsigned long j;
+	srand((unsigned)time(NULL));
 
 	if (N == 0) {
 		/*
