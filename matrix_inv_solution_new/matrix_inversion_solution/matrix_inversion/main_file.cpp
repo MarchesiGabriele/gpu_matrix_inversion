@@ -15,11 +15,14 @@ int main() {
 	#define N 4096 
 	#define REP 16000 
 	#define PIVOTS false 
+	#define RAND true 
 
 	Res matriceInversa;
-
-	unsigned long j;
-	srand((unsigned)time(NULL));
+	
+	if (RAND) {
+		unsigned long j;
+		srand((unsigned)time(NULL));
+	}
 
 	if (N == 0) {
 		/*
@@ -91,7 +94,6 @@ int main() {
 		if(FP32){
 			std::vector<float> matriceIniziale = std::vector<float>(N*N);
 			std::vector<float> matriceInversa = std::vector<float>(N*N);
-			std::cout << N << std::endl;
 
 			for (int i = 0; i < matriceIniziale.size(); i++) {
 				matriceIniziale[i] = (float)(rand() % 10);

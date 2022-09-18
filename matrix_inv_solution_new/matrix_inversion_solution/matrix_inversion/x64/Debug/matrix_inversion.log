@@ -1,25 +1,3 @@
-﻿  main_file.cpp
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\main_file.cpp(101,64): warning C4244: 'argomento': conversione da 'double' a 'int'. Possibile perdita di dati.
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\main_file.cpp(122,64): warning C4244: 'argomento': conversione da 'double' a 'int'. Possibile perdita di dati.
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\main_file.cpp(21,16): warning C4101: 'j': variabile locale senza riferimenti
-  matrix_inversion_FP32.cpp
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\matrix_inversion_FP32.cpp(727,13): warning C4551: chiamata di funzione senza elenco di argomenti
-  matrix_inversion_benchmark.cpp
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\matrix_inversion_benchmark.cpp(530,12): warning C4101: 'time_start': variabile locale senza riferimenti
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\matrix_inversion_benchmark.cpp(531,12): warning C4101: 'time_end': variabile locale senza riferimenti
-  matrix_inversion_FP64.cpp
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\matrix_inversion_FP64.cpp(727,12): warning C4551: chiamata di funzione senza elenco di argomenti
-  matrix_inversion_no_pivots.cpp
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\matrix_inversion_no_pivots.cpp(118,22): warning C4244: 'inizializzazione': conversione da 'double' a 'float'. Possibile perdita di dati.
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\matrix_inversion_no_pivots.cpp(150,23): warning C4244: 'inizializzazione': conversione da 'double' a 'cl_int'. Possibile perdita di dati.
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\matrix_inversion_no_pivots.cpp(154,109): warning C4244: 'argomento': conversione da 'cl_double' a 'const unsigned __int64'. Possibile perdita di dati.
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\matrix_inversion_no_pivots.cpp(548,12): warning C4551: chiamata di funzione senza elenco di argomenti
-  matrix_inversion_no_pivots_benchmark.cpp
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\matrix_inversion_no_pivots_benchmark.cpp(152,23): warning C4244: 'inizializzazione': conversione da 'double' a 'cl_int'. Possibile perdita di dati.
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\matrix_inversion_no_pivots_benchmark.cpp(156,109): warning C4244: 'argomento': conversione da 'cl_double' a 'const unsigned __int64'. Possibile perdita di dati.
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\matrix_inversion_no_pivots_benchmark.cpp(478,12): warning C4551: chiamata di funzione senza elenco di argomenti
-  matrix_multiply.cpp
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\matrix_multiply.cpp(45,67): warning C4244: 'argomento': conversione da 'cl_float' a 'const unsigned __int64'. Possibile perdita di dati.
-C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\matrix_multiply.cpp(179,14): warning C4244: 'inizializzazione': conversione da 'double' a 'int'. Possibile perdita di dati.
-  Generazione del codice in corso...
+﻿  matrix_inversion_FP32.cpp
+C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\matrix_inversion\matrix_inversion_FP32.cpp(754,13): warning C4551: chiamata di funzione senza elenco di argomenti
   matrix_inversion.vcxproj -> C:\TESI\matlab-parallel-computation-tool\matrix_inv_solution_new\matrix_inversion_solution\x64\Debug\matrix_inversion.exe

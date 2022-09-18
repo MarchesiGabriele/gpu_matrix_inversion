@@ -15,25 +15,50 @@
 		// "size" = matrix_order*2, which is the width of the augmented matrix
 		// "r" is the index of the r'th iteration of the for loop where the kernel is enqueued inside the host code. 
 		const std::string fixColumnKernelString = R"(
-		#pragma OPENCL EXTENSION cl_khr_fp64 : enable
-		__kernel void fixColumnKernel(__global float *matrix, int size, int r, __global float *output){
+		__kernel void fixColumnKernel(__global float *matrix, int size, int r, __global float *output, int remain, int limit){
+			int j = get_global_id(0)*4;
+			size_t i = get_global_id(1);
 
-			size_t j = get_global_id(0);	/* column index */
-			size_t i = get_global_id(1);	/* row index */
-			
-			__private float Cij;
-			__private float Crj;		
+			__private float4 Cij;
+			__private float4 Crj;
 			__private float Cir;
 
-			Cij = matrix[i * size + j];
-			Crj = matrix[r * size + j];
 			Cir = matrix[i * size + r];
 
+			Cij.x = matrix[i * size + j];
+			Cij.y = matrix[i * size + j+1];
+			Cij.z = matrix[i * size + j+2];
+			Cij.w = matrix[i * size + j+3];
+
 			if(Cir != 0 && i != r){
-				Cij = Cij - (Cir * Crj);
+				Crj.x = matrix[r * size + j];
+				Crj.y = matrix[r * size + j+1];
+				Crj.z = matrix[r * size + j+2];
+				Crj.w = matrix[r * size + j+3];
+
+				Cij.x = Cij.x - (Cir * Crj.x);
+				Cij.y = Cij.y - (Cir * Crj.y);
+				Cij.z = Cij.z - (Cir * Crj.z);
+				Cij.w = Cij.w - (Cir * Crj.w);
 			}
 
-			output[i * size + j] = Cij;
+			output[i * size + j] = Cij.x;
+			output[i * size + j+1] = Cij.y;
+			output[i * size + j+2] = Cij.z;
+			output[i * size + j+3] = Cij.w;
+
+			if(remain != 0 && (j/4) == (limit-1)){
+				for(int s = 0; s < remain; s++){
+					float crj = matrix[r * size + j+4+s];
+					float cij = matrix[i * size + j+4+s];
+
+					if(Cir != 0 && i != r){
+						cij = cij - (Cir * crj);
+					}
+
+					output[i * size + j+4+s] = cij;
+			   }
+			}
 		})";
 
 		// MAX PIVOT KERNEL
@@ -581,6 +606,8 @@
 			operationResult = fix_row_kernel.setArg(3, buffers[3]); 
 			// COLUMNS
 			operationResult = fix_column_kernel.setArg(1, matrix_order * 2); // larghezza matrice augmentata
+			operationResult = fix_column_kernel.setArg(4, (matrix_order * 2)%4); // larghezza matrice augmentata
+			operationResult = fix_column_kernel.setArg(5, (int)floor((matrix_order * 2)/4)); // larghezza matrice augmentata
 
 			tempoComputazioneInizio = steady_clock::now();
 			duration<float> pivotComputeTime = duration_cast<duration<float>> (steady_clock::now() - steady_clock::now());
@@ -718,7 +745,7 @@
 					operationResult = fix_column_kernel.setArg(3, buffers[0]); // write
 				}
 				operationResult = fix_column_kernel.setArg(2, i); // index colonna da fixare
-				operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange(matrix_order * 2, matrix_order), cl::NullRange, NULL, &event[0]);
+				operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange((int)floor((matrix_order * 2)/4), matrix_order), cl::NullRange, NULL, &event[0]);
 				if (operationResult != CL_SUCCESS) {
 					std::cerr << "ERROR FIX COLUMNs KERNEL" << std::endl;
 					throw operationResult;

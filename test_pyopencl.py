@@ -51,7 +51,7 @@ def matrix_inv():
                 __private float Cir;
 
                 // Questi valori precedenti a r sono sempre 0, quindi evito di leggere e fare i calcoli
-                if(j+3 < r && (j/4) != (limit-1)){
+                if(j+3 < r){
                     output[i * size + j] = 0;
                     output[i * size + j+1] = 0;
                     output[i * size + j+2] = 0;
