@@ -118,27 +118,17 @@ def matrix_inv():
             ).build()
 
     final_max_pivot_prg = cl.Program(ctx, """
-            #pragma OPENCL EXTENSION cl_khr_fp64 : enable
-            __kernel void finalMaxPivot(__global float2 *values){
-                size_t globalId = get_global_id(0);		
-                size_t size = get_global_size(0);		
-
-                __local float2 vector[1000];
-                vector[globalId] = values[globalId];
-
-                barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
-            
-                if(globalId == 0){
+            __kernel void finalMaxPivot(__global float2 *values, int size){
                     __private float2 max = (float2)(0.0,0.0);
                     for(int i = 0; i<size; i++){
-                        if(fabs(vector[i].x) > fabs(max.x)){
-                            max.x = vector[i].x;
-                            max.y = vector[i].y;
+                        if(fabs(values[i].x) > fabs(max.x)){
+                            max.x = values[i].x;
+                            max.y = values[i].y;
                         }
                     }
                     values[0].x = max.x;
                     values[0].y = max.y;
-                }
+                
             } """
             ).build()
 
@@ -288,8 +278,8 @@ def matrix_inv():
         res = cl.enqueue_nd_range_kernel(queue, mp, [N], [256])
 
         #FINAL MAX PIVOT
-        fmp.set_args(pivot_parziali_buf) 
-        res = cl.enqueue_nd_range_kernel(queue, fmp, [n_workgroups], None)
+        fmp.set_args(pivot_parziali_buf, np.int32(n_workgroups)) 
+        res = cl.enqueue_nd_range_kernel(queue, fmp, [1], None)
 
 
         #PIVOT
@@ -311,9 +301,8 @@ def matrix_inv():
 
 
         #COLUMN
-        # TODO: PROVARE AD USARE GLI OFFSET, solo offset iniziale
         if flag:
-            fc.set_args(matrice_augmentata_buf, np.int32(N*2), np.int32(r), matrice_augmentata2_buf, np.int32(pp), np.int32((N*2)//4)) 
+            fc.set_args(matrice_augmentata_buf, np.int32(N*2), np.int32(r),  matrice_augmentata2_buf, np.int32(pp), np.int32((N*2)//4)) 
         else:
             fc.set_args(matrice_augmentata2_buf, np.int32(N*2), np.int32(r), matrice_augmentata_buf, np.int32(pp), np.int32((N*2)//4))
         res = cl.enqueue_nd_range_kernel(queue, fc, [(N*2)//4, N], None)
@@ -362,14 +351,20 @@ def matrix_inv():
     #print("errore: ", math.sqrt(N) - math.sqrt(sum))
     return math.sqrt(N) - math.sqrt(sum)
 
+import cProfile as p
+import pstats
+from pstats import SortKey
+import re
 
 if __name__ == "__main__":
+        
+    #p.run('matrix_inv()', sort = SortKey.TIME)
+     
     err = 0
     for h in range(REP):
         err += matrix_inv()
 
     print(f"Errore medio: {err/REP}")
-        
 
 
 
