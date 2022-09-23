@@ -1,2 +1,1 @@
-# matlab-parallel-computation-tool
-Matlab Parallel Computation for AMD gpus
+# GPU Matrix Inversion with OpenCL
