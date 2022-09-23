@@ -147,13 +147,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="FP32_bench.cpp" />
+    <ClCompile Include="FP64_bench.cpp" />
     <ClCompile Include="main_file.cpp" />
     <ClCompile Include="matrix_inversion_FP32.cpp" />
-    <ClCompile Include="matrix_inversion_benchmark.cpp" />
     <ClCompile Include="matrix_inversion_FP64.cpp" />
     <ClCompile Include="matrix_inversion_no_pivots.cpp" />
-    <ClCompile Include="matrix_inversion_no_pivots_benchmark.cpp" />
     <ClCompile Include="matrix_multiply.cpp" />
+    <ClCompile Include="no_pivot_bench.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="headers.h" />

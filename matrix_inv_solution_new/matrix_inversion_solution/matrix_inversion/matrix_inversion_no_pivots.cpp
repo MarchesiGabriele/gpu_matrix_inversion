@@ -6,7 +6,6 @@
 #include <fstream>
 #include <chrono>
 #define __CL_ENABLE_EXCEPTIONS
-#define A false 
 
 std::vector<double> matrix_inversion_no_pivots(std::vector<double> matrix_vector, int matrix_order) {
 
@@ -31,7 +30,8 @@ std::vector<double> matrix_inversion_no_pivots(std::vector<double> matrix_vector
 				matrix[globalId2*size + globalId] = currentRowValue;
 			}
 
-		})";
+		}
+		)";
 	
 
 	// QUESTO KERNEL RECUPERA IL VALORE SULLA DIAGONALE USATO DA FIX ROW
@@ -40,7 +40,8 @@ std::vector<double> matrix_inversion_no_pivots(std::vector<double> matrix_vector
 		#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 		__kernel void findCrr(__global double *Crr, __global double *matrix, int index, int size){
 			Crr[0] = matrix[index*size + index];		
-		})";
+		}
+		)";
 	
 	// COPIO COLONNA DI INDEX R DENTRO UN BUFFER A PARTE. QUESTA COLONNA CONTIENE I VALORI CIR USATI DA FIX COLUMN.
 	// "r" indica l'index della colonna che devo copiare
@@ -49,7 +50,8 @@ std::vector<double> matrix_inversion_no_pivots(std::vector<double> matrix_vector
 		__kernel void copyCirColumn(__global double *cirColumn, __global double *matrix, int r, int size){
 			size_t j = get_global_id(0);		
 			cirColumn[j] = matrix[j*size + r];
-		})";
+		}
+		)";
 
 
 

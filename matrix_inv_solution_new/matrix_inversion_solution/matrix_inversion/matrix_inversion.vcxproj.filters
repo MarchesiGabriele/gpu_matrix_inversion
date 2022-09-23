@@ -27,13 +27,16 @@
     <ClCompile Include="matrix_inversion_no_pivots.cpp">
       <Filter>File di risorse</Filter>
     </ClCompile>
-    <ClCompile Include="matrix_inversion_benchmark.cpp">
-      <Filter>File di risorse</Filter>
-    </ClCompile>
-    <ClCompile Include="matrix_inversion_no_pivots_benchmark.cpp">
-      <Filter>File di risorse</Filter>
-    </ClCompile>
     <ClCompile Include="matrix_inversion_FP64.cpp">
+      <Filter>File di risorse</Filter>
+    </ClCompile>
+    <ClCompile Include="FP32_bench.cpp">
+      <Filter>File di risorse</Filter>
+    </ClCompile>
+    <ClCompile Include="FP64_bench.cpp">
+      <Filter>File di risorse</Filter>
+    </ClCompile>
+    <ClCompile Include="no_pivot_bench.cpp">
       <Filter>File di risorse</Filter>
     </ClCompile>
   </ItemGroup>

@@ -12,19 +12,19 @@ using namespace std::chrono;
 
 
 // NB: posso moltiplicare solamente matrici quadrate della stessa dimensione
-void matrix_multiply(std::vector<float> matriceB, std::vector<float> matriceA) {
+void matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA) {
 	try {
 		const std::string kernel = R"(
 			#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 			__kernel void simpleMultiply(
-				__global float* outputC,
+				__global double* outputC,
 				int ordine,
-				__global float* inputA,
-				__global float* inputB) {
+				__global double* inputA,
+				__global double* inputB) {
 			int row = get_global_id(1);
 			int col = get_global_id(0);
 
-			float sum = 0.0;
+			double sum = 0.0;
 
 			for (int i = 0; i < ordine; i++) {
 				sum += inputA[row * ordine+ i] * inputB[i * ordine+ col];
@@ -42,7 +42,7 @@ void matrix_multiply(std::vector<float> matriceB, std::vector<float> matriceA) {
 		cl::Context context;
 		cl::CommandQueue commandQueue;
 
-		std::vector<cl_float> vettoreC((cl_float)(sqrt(matriceA.size()) * sqrt(matriceB.size())));
+		std::vector<double> vettoreC((double)(sqrt(matriceA.size()) * sqrt(matriceB.size())));
 		cl_int result;
 
 		/// SETUP
@@ -70,9 +70,9 @@ void matrix_multiply(std::vector<float> matriceB, std::vector<float> matriceA) {
 
 		// CREAZIONE BUFFER E MOVIMENTO DATI IN MEMORIA
 		std::vector<cl::Buffer> buffers;
-		buffers.push_back(cl::Buffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, matriceA.size() * sizeof(cl_float), matriceA.data(), &result));
-		buffers.push_back(cl::Buffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, matriceB.size() * sizeof(cl_float), matriceB.data(), &result));
-		buffers.push_back(cl::Buffer(context, CL_MEM_READ_ONLY, vettoreC.size() * sizeof(cl_float), NULL, &result));
+		buffers.push_back(cl::Buffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, matriceA.size() * sizeof(double), matriceA.data(), &result));
+		buffers.push_back(cl::Buffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, matriceB.size() * sizeof(double), matriceB.data(), &result));
+		buffers.push_back(cl::Buffer(context, CL_MEM_READ_ONLY, vettoreC.size() * sizeof(double), NULL, &result));
 		if (result != CL_SUCCESS) {
 			std::cerr << "ERROR CREATING BUFFERS" << std::endl;
 			throw result;
@@ -146,7 +146,7 @@ void matrix_multiply(std::vector<float> matriceB, std::vector<float> matriceA) {
 		commandQueue.finish();
 
 		// leggo i risultati dell'operazione e li sposto in memoria host
-		result = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, vettoreC.size() * sizeof(cl_float), vettoreC.data(), NULL);
+		result = commandQueue.enqueueReadBuffer(buffers[2], CL_TRUE, 0, vettoreC.size() * sizeof(double), vettoreC.data(), NULL);
 
 
 		if (result != CL_SUCCESS) {
@@ -191,20 +191,10 @@ void matrix_multiply(std::vector<float> matriceB, std::vector<float> matriceA) {
 
 
 		// NORMA DI FROBENIUS
-		float somma = 0.0;
+		double somma = 0.0;
 		for (int i = 0; i < vettoreC.size(); i++) {
 			somma += vettoreC[i] * vettoreC[i];
-			//std::cout << "\n\nSOMMA ATTUALE: " << somma << std::endl;
 		}
-		/*
-				if (somma > 1) {
-					// STAMPO PORZIONE DEL VETTORE C
-					for (int i = 0; i < vettoreC.size()/100; i++) {
-						std::cout << vettoreC[i] <<  "  ";
-					}
-
-				}
-		*/
 
 
 		auto errore = sqrt(ordine) - sqrt(somma);

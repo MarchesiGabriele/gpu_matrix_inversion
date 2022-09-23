@@ -12,10 +12,10 @@ using namespace std;
 
 int main() {
 	#define FP32 true 
-	#define N 4096 
+	#define N  0 
 	#define REP 16000 
-	#define PIVOTS false 
-	#define RAND true 
+	#define PIVOTS true 
+	#define RAND false 
 
 	Res matriceInversa;
 	
@@ -25,111 +25,103 @@ int main() {
 	}
 
 	if (N == 0) {
-		/*
 		ofstream myFile;
-		//myFile.open("C:\\TESI\\TESI DOCUMENTAZIONE\\BENCHMARKS\\GJ_PIVOT_KERNEL_TIMES.txt");
-		//myFile.open("C:\\TESI\\TESI DOCUMENTAZIONE\\BENCHMARKS\\GJ_PIVOT_NO_KERNEL_TIMES.txt");
-		myFile.open("C:\\TESI\\TESI DOCUMENTAZIONE\\BENCHMARKS\\GJ_NO_PIVOT_KERNEL_TIMES.txt");
-		//myFile.open("C:\\TESI\\TESI DOCUMENTAZIONE\\BENCHMARKS\\GJ_NO_PIVOT_NO_KERNEL_TIMES.txt");
+		myFile.open("C:\\TESI\\TESI DOCUMENTAZIONE\\BENCHMARKS\\GJ_PIVOT_HOLLOW_64.txt");
+		//myFile.open("C:\\TESI\\TESI DOCUMENTAZIONE\\BENCHMARKS\\GJ_NOPIVOT_HOLLOW.txt");
 	
 		for (int k = 10; k < REP; k += 10) {
 			std::vector<double> matriceIniziale = std::vector<double>(k * k);
+			std::vector<double> matriceIniziale1 = std::vector<double>(k * k);
+			std::vector<double> matriceInversa1 = std::vector<double>(k * k);
 			std::cout << "\n\nINDEX: " << k << std::endl;
 
+			// RIEMPIO MATRICE INIZIALE
+			int riga = 0;
 			for (int i = 0; i < matriceIniziale.size(); i++) {
-				matriceIniziale[i] = rand() % 10;
+				if (i == (k * riga)) {
+					riga++;
+				}
+				if (i == (k * (riga-1)+(riga-1))) {
+					matriceIniziale[i] = 0;
+				}
+				else {
+					matriceIniziale[i] = rand() % 10;
+				}
 			}
-
-			//matriceInversa = matrix_inversion_bench(matriceIniziale, sqrt(matriceIniziale.size()));
-			matriceInversa = matrix_inversion_no_pivots_bench(matriceIniziale,sqrt(matriceIniziale.size()));
+		
+			// CALCOLO INVERSA
+			//matriceInversa = FP32_bench(matriceIniziale, sqrt(matriceIniziale.size()));
+			matriceInversa = FP64_bench(matriceIniziale, sqrt(matriceIniziale.size()));
 
 			myFile << k << " ";
+	/*	
+			// CONVERTO DA FLOAT A DOUBLE
+			for (int i = 0; i < matriceIniziale.size(); i++) {
+				matriceIniziale1[i] = (double)(matriceIniziale[i]);
+				matriceInversa1[i] = (double)(matriceInversa.inversa32[i]);
+			}
+	*/
+		
+			std::cout << matriceInversa.times.size() << std::endl;
+			// SCRIVO SU FILE I TEMPI
+			for (int i = 0; i <(PIVOTS ? 10 : 11); i++) {
+				myFile << matriceInversa.times[i] << " ";
+			}
 
-			if (PIVOTS) {
-				for (int i = 0; i < 10; i++) {
-					myFile << matriceInversa.times[i] << " ";
-				}
+			myFile << "\n";
+			
+			// ESEGUO CONTROLLO SOLO SE ORDINE MATRICE E' MINORE DI 8000
+			if (k <= 8000) {
+				matrix_multiply(matriceInversa.inversa64, matriceIniziale);
 
-				if (k <= 8000) {
-					double err = matrix_multiply(matriceInversa.inversa, matriceIniziale);
-					if (abs(err) < 1e-10)
-						myFile << "OK\n";
-					else 
-						myFile << "ERRORE\n";
-
-					if( k >= 2000)
-						k += 990;
-				}
-				else {
+				if( k >= 2000)
 					k += 990;
-					myFile << "OKK\n";
-				}
 			}
 			else {
-				for (int i = 0; i < 11; i++) {
-					myFile << matriceInversa.times[i] << " ";
-				}
-
-				if (k <= 8000) {
-					double err = matrix_multiply(matriceInversa.inversa, matriceIniziale);
-					if (abs(err) < 1e-10)
-						myFile << "OK\n";
-					else
-						myFile << "ERRORE\n";
-				
-					if (k >= 2000)
-						k += 990;
-				}
-				else {
-					k += 990;
-					myFile << "OKK\n";
-				} 
+				k += 990;
 			}
 		}
-		myFile << "FINE";
 		myFile.close();
-		*/
 	}
 	else {
 		if(FP32){
 			std::vector<float> matriceIniziale = std::vector<float>(N*N);
+			std::vector<double> matriceIniziale1 = std::vector<double>(N*N);
+			std::vector<double> matriceInversa1 = std::vector<double>(N*N);
 			std::vector<float> matriceInversa = std::vector<float>(N*N);
+			//Res matriceInversa;
 
 			for (int i = 0; i < matriceIniziale.size(); i++) {
 				matriceIniziale[i] = (float)(rand() % 10);
-				//matriceIniziale[i] = (double)(1 / (double)(rand() % 1000 +1));
 			}
 
+			//matriceInversa = FP32_bench(matriceIniziale, sqrt(matriceIniziale.size()));
 			matriceInversa = matrix_inversion_FP32(matriceIniziale, sqrt(matriceIniziale.size()));
-			//matriceInversa = matrix_inversion_no_pivots_bench(matriceIniziale, sqrt(matriceIniziale.size()));
-			/*
+/*
 			for (int i = 0; i < 10; i++) {
 				std::cout << matriceInversa.times[i] << " ";
 			}
-			*/
-
-			matrix_multiply(matriceInversa, matriceIniziale);
+*/
+			for (int i = 0; i < matriceIniziale.size(); i++) {
+				matriceIniziale1[i] = (double)(matriceIniziale[i]);
+				matriceInversa1[i] = (double)(matriceInversa[i]);
+			}
+			matrix_multiply(matriceInversa1, matriceIniziale1);
 		}
 		else {
 			std::vector<double> matriceIniziale = std::vector<double>(N*N);
 			std::vector<double> matriceInversa = std::vector<double>(N*N);
-			std::vector<float> matriceIniziale1 = std::vector<float>(N*N);
-			std::vector<float> matriceInversa1 = std::vector<float>(N*N);
 
 			for (int i = 0; i < matriceIniziale.size(); i++) {
 				matriceIniziale[i] = (double)(rand() % 10);
 				//matriceIniziale[i] = (double)(1 / (double)(rand() % 1000 +1));
 			}
 
-			matriceInversa = matrix_inversion_FP64(matriceIniziale, sqrt(matriceIniziale.size()));
+			//matriceInversa = matrix_inversion_FP64(matriceIniziale, sqrt(matriceIniziale.size()));
+			matriceInversa = matrix_inversion_no_pivots(matriceIniziale, sqrt(matriceIniziale.size()));
 
-			for (int i = 0; i < matriceIniziale.size(); i++) {
-				matriceIniziale1[i] = (float)(matriceIniziale[i]);
-				matriceInversa1[i] = (float)(matriceInversa[i]);
-			}
-
-
-			matrix_multiply(matriceInversa1, matriceIniziale1);
+		
+			matrix_multiply(matriceInversa, matriceIniziale);
 		}
 	
 	}

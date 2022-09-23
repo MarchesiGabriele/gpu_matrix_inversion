@@ -101,7 +101,6 @@ def matrix_inv():
 
 
     fix_row_prg = cl.Program(ctx, """
-            #pragma OPENCL EXTENSION cl_khr_fp64 : enable
             __kernel void fixRow(__global float *matrix, int size, int r, __global float2 *pivot){
                 size_t globalId = get_global_id(0);		
 
@@ -133,7 +132,6 @@ def matrix_inv():
             ).build()
 
     pivot_prg = cl.Program(ctx, """
-            #pragma OPENCL EXTENSION cl_khr_fp64 : enable
             __kernel void pivot(__global float *matrix, int size, int r, __global float2 *pivot){
                 size_t globalId = get_global_id(0);
                 size_t localId = get_local_id(0);
