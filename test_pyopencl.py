@@ -10,7 +10,7 @@ warnings.filterwarnings("ignore")
 os.environ['PYOPENCL_COMPILER_OUTPUT'] = '1'
 os.environ['PYOPENCL_CTX'] = '0'
 
-N = 4096 
+N = 8192 
 REP = 1 
 
 def matrix_inv():
@@ -263,6 +263,7 @@ def matrix_inv():
     st5 = time.monotonic()
 
     pp = (N*2)%4
+    print("start")
     for r in range(N): 
         flag = (r%2) == 0
 

@@ -1,42 +1,42 @@
-from numpy.linalg import inv
 import numpy as np
 import time
 
-N = 4096 
-TIMES = 1 
-
-def main():
-    for i in range(TIMES):
-        array = np.random.uniform(0.00000000001, 0, (N,N)) 
+def mat_inv():
+    file = open("C:/TESI/TESI DOCUMENTAZIONE/BENCHMARKS/NUMPY_64.txt", "w")
+        
+    i = 10
+    while i < 16000:
+        array = np.random.uniform(0, 100, (i,i)) 
         a = np.array(array)
+
+        #HOLLOW
+        for x in range(len(a)):
+            a[x][x] = 0
+
         start = time.monotonic()
         res = inv(np.matrix(a)) 
         end = time.monotonic()
+
         check = np.matmul(res, a)
-        if(check != np.eye(N)).all():
-            print("KO")
 
-    print(f"OK, tempo impiegato: {end-start}s")
-    print(f"GFLOPS: {((N*N*N)/(end-start))/1e9}s")
-    print(f"DIMENSIONE MATRICE: {N}")
+        #calcolo norma frobenius
+        arr = np.squeeze(check)
+        vec = arr @ arr
 
-def c(): 
-    rng = np.random.default_rng()
-    array = rng.random((N,N))
-    print(array[0])
-    start = time.monotonic()
-    a = np.array(array)
-    res =inv(np.matrix(a)) 
-    end = time.monotonic()
-    check = np.matmul(res, a)
-    if(check != np.eye(N)).all():
-        print("KO")
+        somma = np.sum(vec) 
 
-    print(f"OK, tempo impiegato: {end-start}s")
-    print(f"DIMENSIONE MATRICE: {N}")
+        print(f"Somma: {somma}, errore: {np.sqrt(i)-np.sqrt(somma)}")
+        file.write(f"{i} {end-start} {np.sqrt(i)-np.sqrt(somma)}\n") 
+
+        if i < 2000:
+            i+= 10
+        else:
+            i += 1000
+
+    file.close()
 
 
 
 if __name__ == "__main__":
-    main()
-    #c()
+    mat_inv()
+

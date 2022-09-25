@@ -13,7 +13,7 @@ using namespace std;
 int main() {
 	#define FP32 true 
 	#define N  0 
-	#define REP 16000 
+	#define REP 500 
 	#define PIVOTS true 
 	#define RAND false 
 
@@ -26,7 +26,7 @@ int main() {
 
 	if (N == 0) {
 		ofstream myFile;
-		myFile.open("C:\\TESI\\TESI DOCUMENTAZIONE\\BENCHMARKS\\GJ_PIVOT_HOLLOW_64.txt");
+		myFile.open("C:\\TESI\\TESI DOCUMENTAZIONE\\BENCHMARKS\\test.txt");
 		//myFile.open("C:\\TESI\\TESI DOCUMENTAZIONE\\BENCHMARKS\\GJ_NOPIVOT_HOLLOW.txt");
 	
 		for (int k = 10; k < REP; k += 10) {
@@ -36,6 +36,7 @@ int main() {
 			std::cout << "\n\nINDEX: " << k << std::endl;
 
 			// RIEMPIO MATRICE INIZIALE
+		/*
 			int riga = 0;
 			for (int i = 0; i < matriceIniziale.size(); i++) {
 				if (i == (k * riga)) {
@@ -48,6 +49,37 @@ int main() {
 					matriceIniziale[i] = rand() % 10;
 				}
 			}
+			*/
+
+			// MATRICE SPARSE
+			for (int i = 0; i < matriceIniziale.size(); i++) {
+				if ((int)(rand() % (matriceIniziale.size()/(k*k/5))) == 0)
+					matriceIniziale[i] = (double)(rand() % 10);
+				else	
+					matriceIniziale[i] = 0;
+			} 
+
+/*
+			for (int i = 0; i < matriceIniziale.size()-k; i++) {
+				if (matriceIniziale[(int)(rand() % matriceIniziale.size())] != 0) {
+					matriceIniziale[(int)(rand() % matriceIniziale.size())] = 0;
+				}
+				else {
+					i--;
+				}
+			} 
+*/
+			int nonZeri = 0;
+			for (int i = 0; i < matriceIniziale.size(); i++) {
+				if (matriceIniziale[i] != 0)
+					nonZeri++;
+			} 
+
+			std::cout << "Ordine: " << k << std::endl;
+			std::cout << "Non Zeri: " << nonZeri << std::endl;
+
+
+
 		
 			// CALCOLO INVERSA
 			//matriceInversa = FP32_bench(matriceIniziale, sqrt(matriceIniziale.size()));
