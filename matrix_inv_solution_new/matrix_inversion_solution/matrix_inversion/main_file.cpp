@@ -12,7 +12,7 @@ using namespace std;
 
 int main() {
 	#define FP32 true 
-	#define N  0 
+	#define N 4096 
 	#define REP 500 
 	#define PIVOTS true 
 	#define RAND false 
