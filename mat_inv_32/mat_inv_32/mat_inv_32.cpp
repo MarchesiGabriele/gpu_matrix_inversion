@@ -236,11 +236,11 @@ std::vector<float> matrix_inv_32(std::vector<float> input_matrix, int matrix_ord
 		steady_clock::time_point tempoComputazioneInizio;
 
 		// PLATFORM
-		operationResult = cl::Platform::get(&platforms);
+		cl::Platform::get(&platforms);
 		chosenPlatform = platforms[0];
 
 		// DEVICE
-		operationResult = chosenPlatform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
+		chosenPlatform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
 		chosenDevice = devices[0];
 
 		// DEVICE	
@@ -272,12 +272,12 @@ std::vector<float> matrix_inv_32(std::vector<float> input_matrix, int matrix_ord
 
 
 		// COMPILE PROGRAMS
-		operationResult = fix_column_program.build(devices);
-		operationResult = max_pivot_program.build(devices);
-		operationResult = final_max_pivot_program.build(devices);
-		operationResult = matrix_program.build(devices);
-		operationResult = fix_row_program.build(devices);
-		operationResult = pivot_kernel_program.build(devices);
+		fix_column_program.build(devices);
+		max_pivot_program.build(devices);
+		final_max_pivot_program.build(devices);
+		matrix_program.build(devices);
+		fix_row_program.build(devices);
+		pivot_kernel_program.build(devices);
 
 		// CREATE KERNELS
 		cl::Kernel fix_column_kernel(fix_column_program, "fixColumnKernel", &operationResult);
@@ -290,28 +290,28 @@ std::vector<float> matrix_inv_32(std::vector<float> input_matrix, int matrix_ord
 		cl::Kernel pivot_kernel(pivot_kernel_program, "pivotElementsKernel", &operationResult);
 
 		// MAKE AUGMENTED MATRIX
-		operationResult = make_augmented_matrix_kernel.setArg(0, buffers[0]);
-		operationResult = make_augmented_matrix_kernel.setArg(1, buffers[1]);
-		operationResult = make_augmented_matrix_kernel.setArg(2, matrix_order);
-		operationResult = commandQueue.enqueueNDRangeKernel(make_augmented_matrix_kernel, cl::NDRange(0, 1), cl::NDRange((cl_int)(matrix_order * 2), matrix_order), cl::NullRange, NULL, NULL);
-		operationResult = commandQueue.finish();
+		make_augmented_matrix_kernel.setArg(0, buffers[0]);
+		make_augmented_matrix_kernel.setArg(1, buffers[1]);
+		make_augmented_matrix_kernel.setArg(2, matrix_order);
+		commandQueue.enqueueNDRangeKernel(make_augmented_matrix_kernel, cl::NDRange(0, 1), cl::NDRange((cl_int)(matrix_order * 2), matrix_order), cl::NullRange, NULL, NULL);
+		commandQueue.finish();
 
 
 		// MAX PIVOT
-		operationResult = max_pivot_kernel.setArg(1, matrix_order * 2); 
-		operationResult = max_pivot_kernel.setArg(3, buffers[3]);
+		max_pivot_kernel.setArg(1, matrix_order * 2); 
+		max_pivot_kernel.setArg(3, buffers[3]);
 		// FINAL MAX PIVOT
-		operationResult = final_max_pivot_kernel.setArg(0, buffers[3]);
+		final_max_pivot_kernel.setArg(0, buffers[3]);
 		// PIVOT 
-		operationResult = pivot_kernel.setArg(1, matrix_order * 2); 
-		operationResult = pivot_kernel.setArg(3, buffers[3]);
+		pivot_kernel.setArg(1, matrix_order * 2); 
+		pivot_kernel.setArg(3, buffers[3]);
 		// ROWS
-		operationResult = fix_row_kernel.setArg(1, matrix_order * 2); 
-		operationResult = fix_row_kernel.setArg(3, buffers[3]);
+		fix_row_kernel.setArg(1, matrix_order * 2); 
+		fix_row_kernel.setArg(3, buffers[3]);
 		// COLUMNS
-		operationResult = fix_column_kernel.setArg(1, matrix_order * 2); 
-		operationResult = fix_column_kernel.setArg(4, (matrix_order * 2) % 4); 
-		operationResult = fix_column_kernel.setArg(5, (int)floor((matrix_order * 2) / 4)); 
+		fix_column_kernel.setArg(1, matrix_order * 2); 
+		fix_column_kernel.setArg(4, (matrix_order * 2) % 4); 
+		fix_column_kernel.setArg(5, (int)floor((matrix_order * 2) / 4)); 
 
 		tempoComputazioneInizio = steady_clock::now();
 		for (int i = 0; i < matrix_order; i++) {
@@ -320,68 +320,65 @@ std::vector<float> matrix_inv_32(std::vector<float> input_matrix, int matrix_ord
 			// MAX PIVOT 
 			steady_clock::time_point pivotInizio = steady_clock::now();
 			if (flag)
-				operationResult = max_pivot_kernel.setArg(0, buffers[0]);
+				max_pivot_kernel.setArg(0, buffers[0]);
 			else
-				operationResult = max_pivot_kernel.setArg(0, buffers[2]);
+				max_pivot_kernel.setArg(0, buffers[2]);
 
-			operationResult = max_pivot_kernel.setArg(2, i);
-			operationResult = commandQueue.enqueueNDRangeKernel(max_pivot_kernel, cl::NullRange, cl::NDRange(matrix_order), cl::NDRange(256), NULL, NULL);
+			max_pivot_kernel.setArg(2, i);
+			commandQueue.enqueueNDRangeKernel(max_pivot_kernel, cl::NullRange, cl::NDRange(matrix_order), cl::NDRange(256), NULL, NULL);
 
 			// FINAL MAX PIVOT
-			operationResult = commandQueue.enqueueNDRangeKernel(final_max_pivot_kernel, cl::NullRange, cl::NDRange(numeroWorkgroups), cl::NullRange, NULL, NULL);
+			commandQueue.enqueueNDRangeKernel(final_max_pivot_kernel, cl::NullRange, cl::NDRange(numeroWorkgroups), cl::NullRange, NULL, NULL);
 
 			// PIVOT
 			if (flag)
-				operationResult = pivot_kernel.setArg(0, buffers[0]);
+				pivot_kernel.setArg(0, buffers[0]);
 			else
-				operationResult = pivot_kernel.setArg(0, buffers[2]);
+				pivot_kernel.setArg(0, buffers[2]);
 
-			operationResult = pivot_kernel.setArg(2, i); 
-			operationResult = commandQueue.enqueueNDRangeKernel(pivot_kernel, cl::NullRange, cl::NDRange(matrix_order * 2), cl::NDRange(256), NULL, NULL);
-			commandQueue.finish();
+			pivot_kernel.setArg(2, i); 
+			commandQueue.enqueueNDRangeKernel(pivot_kernel, cl::NullRange, cl::NDRange(matrix_order * 2), cl::NDRange(256), NULL, NULL);
 
 			// ROWS
 			if (flag)
-				operationResult = fix_row_kernel.setArg(0, buffers[0]);
+				fix_row_kernel.setArg(0, buffers[0]);
 			else
-				operationResult = fix_row_kernel.setArg(0, buffers[2]);
+				fix_row_kernel.setArg(0, buffers[2]);
 
-			operationResult = fix_row_kernel.setArg(2, i); 
-			operationResult = commandQueue.enqueueNDRangeKernel(fix_row_kernel, cl::NullRange, cl::NDRange(matrix_order * 2), cl::NDRange(256), NULL, NULL);
-			commandQueue.finish();
+			fix_row_kernel.setArg(2, i); 
+			commandQueue.enqueueNDRangeKernel(fix_row_kernel, cl::NullRange, cl::NDRange(matrix_order * 2), cl::NDRange(256), NULL, NULL);
 
 			// COLUMNS
 			if (flag) {
-				operationResult = fix_column_kernel.setArg(0, buffers[0]); // read
-				operationResult = fix_column_kernel.setArg(3, buffers[2]); // write
+				fix_column_kernel.setArg(0, buffers[0]); // read
+				fix_column_kernel.setArg(3, buffers[2]); // write
 			}
 			else {
-				operationResult = fix_column_kernel.setArg(0, buffers[2]); // read 
-				operationResult = fix_column_kernel.setArg(3, buffers[0]); // write
+				fix_column_kernel.setArg(0, buffers[2]); // read 
+				fix_column_kernel.setArg(3, buffers[0]); // write
 			}
-			operationResult = fix_column_kernel.setArg(2, i); 
-			operationResult = commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange((int)floor((matrix_order * 2) / 4), matrix_order), cl::NullRange, NULL);
-			commandQueue.finish();
+			fix_column_kernel.setArg(2, i); 
+			commandQueue.enqueueNDRangeKernel(fix_column_kernel, cl::NullRange, cl::NDRange((int)floor((matrix_order * 2) / 4), matrix_order), cl::NullRange, NULL);
 		}
 
-		operationResult = commandQueue.finish();
+		commandQueue.finish();
 		steady_clock::time_point tempoComputazioneFine = steady_clock::now();
 		duration<float> tempoComputazioneGPU = duration_cast<duration<float>> (tempoComputazioneFine - tempoComputazioneInizio);
 
 		// GET INVERTED MATRIX 
 		if (((matrix_order - 1) % 2) == 0)
-			operationResult = get_inverted_matrix_kernel.setArg(0, buffers[2]);
+			get_inverted_matrix_kernel.setArg(0, buffers[2]);
 		else
-			operationResult = get_inverted_matrix_kernel.setArg(0, buffers[0]);
-		operationResult = get_inverted_matrix_kernel.setArg(1, buffers[1]);
-		operationResult = get_inverted_matrix_kernel.setArg(2, matrix_order);
-		operationResult = commandQueue.enqueueNDRangeKernel(get_inverted_matrix_kernel, cl::NDRange(0, 1), cl::NDRange((cl_int)(2 * matrix_order), matrix_order), cl::NullRange, NULL, NULL);
-		operationResult = commandQueue.finish();
+			get_inverted_matrix_kernel.setArg(0, buffers[0]);
+		get_inverted_matrix_kernel.setArg(1, buffers[1]);
+		get_inverted_matrix_kernel.setArg(2, matrix_order);
+		commandQueue.enqueueNDRangeKernel(get_inverted_matrix_kernel, cl::NDRange(0, 1), cl::NDRange((cl_int)(2 * matrix_order), matrix_order), cl::NullRange, NULL, NULL);
+		commandQueue.finish();
 
 		// READ FINAL RESULT FROM GPU
 		std::vector<float> matriceResult = std::vector<float>(input_matrix.size(), 0.0);
-		operationResult = commandQueue.enqueueReadBuffer(buffers[1], CL_TRUE, 0, matriceResult.size() * sizeof(cl_float), matriceResult.data(), NULL);
-		operationResult = commandQueue.finish();
+		commandQueue.enqueueReadBuffer(buffers[1], CL_TRUE, 0, matriceResult.size() * sizeof(cl_float), matriceResult.data(), NULL);
+		commandQueue.finish();
 
 		steady_clock::time_point tempoTotaleFine = steady_clock::now();
 		duration<float> tempoTotale = duration_cast<duration<float>> (tempoTotaleFine - tempoTotaleInizio);
