@@ -16,13 +16,16 @@ Those are the VS project settings required to make OpenCL work:
 
 - The library has been built using "build solution" with the project in Release Mode. This produced a .lib that we then used inside Matlab.
 
-## Matlab Library Import 
+#### Important: this project was done using Visual Studio 2019 IDE and compiler. It might not work on other versions.
+
+## Library Import in Matlab 
 To import the library in Matlab and get a usable object you need to:
-- Have a C++ compiler installec on your machine
+- Have a C++ compiler installed on your machine
 - Download the Matlab folder that contains the .lib and .h files of the library.
 - Open the folder in Matlab. 
 - Create a Matlab file with this code:
-'''
+
+```
 mex -setup cpp 
 
 header = "./mat_inv_32.h"; 
@@ -37,8 +40,20 @@ summary(defineMatrixInversion);
 
 build(defineMatrixInversion); 
 
-inversaGPU = clib.matInv.matrix_inv_32(b, N).double 
-'''
+inverse_object = clib.matInv.matrix_inv_32(b, N).double 
+
+addPath(<path_to_this_matlab_folder>)
+```
+- You can now utilize the inverse_object to utilize the library functions. As you can see from the .h file, the inverse function takes a vector containing the matrix you want to invert and it return a vector of the result. 
+In case of invalid matrix an empty vector is returned.
+
+
+
+
+
+
+
+
 
 
 (This steps are for the (FP32 version + partial pivoting) version of the algorithm. To use the other versions you also need to create the .lib and .h files and change the Matlab code to utilize the new library and headers files)
