@@ -1,5 +1,9 @@
 # GPU Matrix Inversion with OpenCL
 
+## Introduction
+This is experiment where we try to run matrix inversions on GPU. We used OpenCL and a AMD RX5700 8GB.
+The goal is to find out if it's possible to make a GPU parallel Matrix Inversion implementation using the Gauss - Jordan algorithm and make it run faster than the cpu implementations offered by Numpy and Matlab.
+
 ## Visual Studio Library Project Creation 
 - The VS project/solution has been created using this guide. This allows to build the VS solution and get a .lib file.
 - Then to be able to use OpenCL we imported the OpenCL library and Headers. You can find them in the OpenCL folder. 
@@ -47,16 +51,4 @@ addPath(<path_to_this_matlab_folder>)
 - You can now utilize the inverse_object to utilize the library functions. As you can see from the .h file, the inverse function takes a vector containing the matrix you want to invert and it return a vector of the result. 
 In case of invalid matrix an empty vector is returned.
 
-
-
-
-
-
-
-
-
-
 (This steps are for the (FP32 version + partial pivoting) version of the algorithm. To use the other versions you also need to create the .lib and .h files and change the Matlab code to utilize the new library and headers files)
-
-
-
