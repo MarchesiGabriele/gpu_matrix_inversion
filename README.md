@@ -51,4 +51,16 @@ addPath(<path_to_this_matlab_folder>)
 - You can now utilize the inverse_object to utilize the library functions. As you can see from the .h file, the inverse function takes a vector containing the matrix you want to invert and it return a vector of the result. 
 In case of invalid matrix an empty vector is returned.
 
-(This steps are for the (FP32 version + partial pivoting) version of the algorithm. To use the other versions you also need to create the .lib and .h files and change the Matlab code to utilize the new library and headers files)
+(These steps are for the (FP32 version + partial pivoting) version of the algorithm. To use the other versions you also need to create the .lib and .h files and change the Matlab code to utilize the new library and headers files)
+
+## Benchmarks
+
+## Conclusions
+Our GPU implementation is not faster than Matlab nor Numpy, even tho they only use the CPU. Thats because they utilize LAPACK's LU Decompositions which is more effcient than Gauss Jordan and also because we have some OpenCL setup overhead.
+
+PyopenCL removes many overheads thanks to its out-of-the-box optimizations and it requires much less code than the C++ version. This makes OpenCL accessible to everyone and makes GPU programming much easier. 
+
+Not every algorithm is suitable for GPU parallelization, but this experiment shows that even with a AMD gpu we can still program it to perform compute operations. With a better algorithm, better optimization or with a completely different algebric operation it is possible to make a OpenCL GPU implementation with higher performance than CPU.
+
+
+
