@@ -51,7 +51,8 @@ addPath(<path_to_this_matlab_folder>)
 - You can now utilize the inverse_object to utilize the library functions. As you can see from the .h file, the inverse function takes a vector containing the matrix you want to invert and it return a vector of the result. 
 In case of invalid matrix an empty vector is returned.
 
-(These steps are for the (FP32 version + partial pivoting) version of the algorithm. To use the other versions you also need to create the .lib and .h files and change the Matlab code to utilize the new library and headers files)
+NB: The mat_inv_32 folder inside the Matlab folder is the VS project that we used to create the .lib file. Its not necessary to keep it, but if you want to take a look at the code it is there.
+NB: These steps are for the (FP32 version + partial pivoting) version of the algorithm. To use the other versions you also need to create the .lib and .h files and change the Matlab code to utilize the new library and headers files.  
 
 ## Benchmarks
 
