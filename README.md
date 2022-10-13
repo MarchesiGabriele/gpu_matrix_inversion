@@ -44,9 +44,11 @@ summary(defineMatrixInversion);
 
 build(defineMatrixInversion); 
 
-inverse_object = clib.matInv.matrix_inv_32(b, N).double 
-
 addPath(<path_to_this_matlab_folder>)
+
+b = <input_vector_matrix>
+N = <input_vector_matrix_order>
+inverse_result = clib.matInv.matrix_inv_32(b, N).double 
 ```
 - You can now utilize the inverse_object to utilize the library functions. As you can see from the .h file, the inverse function takes a vector containing the matrix you want to invert and it return a vector of the result. 
 In case of invalid matrix an empty vector is returned.
