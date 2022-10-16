@@ -12,9 +12,9 @@ using namespace std;
 
 int main() {
 	#define FP32 true 
-	#define N 4096 
-	#define REP 500 
-	#define PIVOTS true 
+	#define N 0 
+	#define REP 16000
+	#define PIVOTS false 
 	#define RAND false 
 
 	Res matriceInversa;
@@ -26,17 +26,18 @@ int main() {
 
 	if (N == 0) {
 		ofstream myFile;
-		myFile.open("C:\\TESI\\TESI DOCUMENTAZIONE\\BENCHMARKS\\test.txt");
-		//myFile.open("C:\\TESI\\TESI DOCUMENTAZIONE\\BENCHMARKS\\GJ_NOPIVOT_HOLLOW.txt");
+		myFile.open("C:\\Users\\march\\Desktop\\TESI DOCUMENTAZIONE\\BENCHMARKS\\errore_64.txt");
 	
 		for (int k = 10; k < REP; k += 10) {
+			//std::vector<float> matriceIniziale = std::vector<float>(k * k);
 			std::vector<double> matriceIniziale = std::vector<double>(k * k);
 			std::vector<double> matriceIniziale1 = std::vector<double>(k * k);
 			std::vector<double> matriceInversa1 = std::vector<double>(k * k);
 			std::cout << "\n\nINDEX: " << k << std::endl;
 
+
+			myFile << k << " ";
 			// RIEMPIO MATRICE INIZIALE
-		/*
 			int riga = 0;
 			for (int i = 0; i < matriceIniziale.size(); i++) {
 				if (i == (k * riga)) {
@@ -49,69 +50,35 @@ int main() {
 					matriceIniziale[i] = rand() % 10;
 				}
 			}
-			*/
 
-			// MATRICE SPARSE
-			for (int i = 0; i < matriceIniziale.size(); i++) {
-				if ((int)(rand() % (matriceIniziale.size()/(k*k/5))) == 0)
-					matriceIniziale[i] = (double)(rand() % 10);
-				else	
-					matriceIniziale[i] = 0;
-			} 
-
-/*
-			for (int i = 0; i < matriceIniziale.size()-k; i++) {
-				if (matriceIniziale[(int)(rand() % matriceIniziale.size())] != 0) {
-					matriceIniziale[(int)(rand() % matriceIniziale.size())] = 0;
-				}
-				else {
-					i--;
-				}
-			} 
-*/
-			int nonZeri = 0;
-			for (int i = 0; i < matriceIniziale.size(); i++) {
-				if (matriceIniziale[i] != 0)
-					nonZeri++;
-			} 
-
-			std::cout << "Ordine: " << k << std::endl;
-			std::cout << "Non Zeri: " << nonZeri << std::endl;
-
-
-
-		
 			// CALCOLO INVERSA
 			//matriceInversa = FP32_bench(matriceIniziale, sqrt(matriceIniziale.size()));
 			matriceInversa = FP64_bench(matriceIniziale, sqrt(matriceIniziale.size()));
 
-			myFile << k << " ";
-	/*	
 			// CONVERTO DA FLOAT A DOUBLE
 			for (int i = 0; i < matriceIniziale.size(); i++) {
 				matriceIniziale1[i] = (double)(matriceIniziale[i]);
-				matriceInversa1[i] = (double)(matriceInversa.inversa32[i]);
+				matriceInversa1[i] = (double)(matriceInversa.inversa64[i]);
 			}
-	*/
 		
 			std::cout << matriceInversa.times.size() << std::endl;
+
 			// SCRIVO SU FILE I TEMPI
-			for (int i = 0; i <(PIVOTS ? 10 : 11); i++) {
+			/*for (int i = 0; i <(PIVOTS ? 10 : 11); i++) {
 				myFile << matriceInversa.times[i] << " ";
 			}
-
-			myFile << "\n";
+			*/
 			
 			// ESEGUO CONTROLLO SOLO SE ORDINE MATRICE E' MINORE DI 8000
 			if (k <= 8000) {
-				matrix_multiply(matriceInversa.inversa64, matriceIniziale);
-
-				if( k >= 2000)
-					k += 990;
+				if( k >= 2000) k += 990;
 			}
 			else {
 				k += 990;
 			}
+
+			auto errore = matrix_multiply(matriceInversa1, matriceIniziale1);
+			myFile << errore << std::endl;
 		}
 		myFile.close();
 	}

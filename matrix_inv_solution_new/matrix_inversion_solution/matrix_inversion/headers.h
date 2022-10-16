@@ -2,7 +2,7 @@
 #include <vector>
 #include "res_struct.h"
 
-void matrix_multiply(std::vector<double> matriceA, std::vector<double> matriceB);
+double matrix_multiply(std::vector<double> matriceA, std::vector<double> matriceB);
 
 std::vector<float> matrix_inversion_FP32(std::vector<float> matrix_vector, int matrix_order);
 

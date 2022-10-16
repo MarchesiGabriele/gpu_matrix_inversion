@@ -10,14 +10,10 @@ warnings.filterwarnings("ignore")
 os.environ['PYOPENCL_COMPILER_OUTPUT'] = '1'
 os.environ['PYOPENCL_CTX'] = '0'
 
-N = 8192 
-REP = 1 
-
-def matrix_inv():
+def matrix_inv(N, file):
     # CREO MATRICI INPUT
     matrice_input= np.random.uniform(0, 100, (N,N)).astype(np.float32)
     matrice_input2= matrice_input.copy()
-    #print(matrice_input)
 
 
     # INIZIALIZZO CONTEXT e COMMANQUEUE
@@ -339,16 +335,17 @@ def matrix_inv():
 
     # CONTROLLO FINALE
     c = np.matmul(matrice_input, matrice_input2)
+    vec =  c @ c 
+    sum = np.sum(vec)
 
-    sum = 0
-    vec = c.flat
-    for i in range(c.size):
-        sum += vec[i]*vec[i]
+    print(f"errore: {math.sqrt(N) - math.sqrt(sum)}")
 
-    #print("ordine: ", math.sqrt(N))
-    #print("somma: ", math.sqrt(sum))
-    #print("errore: ", math.sqrt(N) - math.sqrt(sum))
-    return math.sqrt(N) - math.sqrt(sum)
+    #sum = 0
+    #vec = c.flat
+    #for i in range(c.size):
+    #    sum += vec[i]*vec[i]
+
+    file.write(f"{N} {end5 - st5} {end7 - st7} {math.sqrt(N) - math.sqrt(sum)}\n")
 
 import cProfile as p
 import pstats
@@ -356,15 +353,19 @@ from pstats import SortKey
 import re
 
 if __name__ == "__main__":
-        
-    #p.run('matrix_inv()', sort = SortKey.TIME)
-     
-    err = 0
-    for h in range(REP):
-        err += matrix_inv()
+    file = open("C:/Users/march/Desktop/TESI DOCUMENTAZIONE/BENCHMARKS/pyopencl_32.txt", "w")
 
-    print(f"Errore medio: {err/REP}")
+    i = 10
+    while i < 100:
+        matrix_inv(i, file)
 
+        if i < 2000:
+            i+= 10
+        else:
+            i += 1000
+
+    file.close()
+    print("fine")
 
 
 

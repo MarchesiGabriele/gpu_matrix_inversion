@@ -12,7 +12,7 @@ using namespace std::chrono;
 
 
 // NB: posso moltiplicare solamente matrici quadrate della stessa dimensione
-void matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA) {
+double matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA) {
 	try {
 		const std::string kernel = R"(
 			#pragma OPENCL EXTENSION cl_khr_fp64 : enable
@@ -208,6 +208,8 @@ void matrix_multiply(std::vector<double> matriceB, std::vector<double> matriceA)
 			std::cerr << "ERROR ENQUEUE READ BUFFER" << std::endl;
 			throw result;
 		}
+
+		return errore;
 
 	}
 	catch (cl_int e) {
