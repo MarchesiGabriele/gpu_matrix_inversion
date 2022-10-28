@@ -5,7 +5,7 @@ def mat_inv():
     file = open("C:/TESI/TESI DOCUMENTAZIONE/BENCHMARKS/NUMPY_64.txt", "w")
         
     i = 10
-    while i < 16000:
+    while i < 5000:
         array = np.random.uniform(0, 100, (i,i)) 
         a = np.array(array)
 
@@ -36,7 +36,17 @@ def mat_inv():
     file.close()
 
 
+def just_inv(K):
+    array = np.random.uniform(0, 100, (K,K)) 
+    a = np.array(array)
+
+    start = time.monotonic()
+    res = np.linalg.inv(np.matrix(a)) 
+    end = time.monotonic()
+    print(f"TIME: {end-start}")
+
 
 if __name__ == "__main__":
-    mat_inv()
+    #mat_inv()
+    just_inv(10000)
 
